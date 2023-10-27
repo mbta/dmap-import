@@ -1,0 +1,53 @@
+[tool.poetry]
+name = "dmap_import"
+version = "0.1.0"
+description = "MBTA Application for Archiving Cubic DMAP Data in Postgres"
+authors = [
+    "MBTA CTD <developer@mbta.com>",
+    "Ryan Rymarczyk <rrymarczyk@mbta.com>",
+    "Mike Zappitello <mzappitello@mbta.com>"
+]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.12"
+sqlalchemy = "^2.0.22"
+alembic = "^1.12.1"
+
+[tool.poetry.scripts]
+start = 'dmap_import.pipeline:main'
+
+[tool.poetry.group.dev.dependencies]
+black = "^23.10.1"
+mypy = "^1.6.1"
+pylint = "^3.0.2"
+pytest = "^7.4.3"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.black]
+line-length = 80
+target-version = ['py312']
+
+[tool.mypy]
+disallow_untyped_defs = true
+ignore_missing_imports = true
+pretty = true
+python_version = 3.12
+warn_unreachable = true
+warn_unused_ignores = true
+
+[tool.pylint]
+disable = [
+  # disable doc string requirements
+  "missing-module-docstring",
+  # allow catching a generic exception
+  "broad-except",
+  # we're logging everything so its "ok"
+  "lost-exception",
+]
+good-names = ["e", "i", "s"]
+max-line-length = 80
+min-similarity-lines = 10

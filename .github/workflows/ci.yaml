@@ -1,0 +1,108 @@
+name: Continuous Integration
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'src/**'
+      - 'tests/**'
+      - 'pyproject.toml'
+      - '.github/workflows/ci.yaml'
+      - '.github/actions/asdf_tools/action.yaml'
+      - '.github/actions/python_dependencies/action.yaml'
+      - '.tool-versions'
+  pull_request:
+    paths:
+      - 'src/**'
+      - 'tests/**'
+      - 'pyproject.toml'
+      - '.github/workflows/ci.yaml'
+      - '.github/actions/asdf_tools/action.yaml'
+      - '.github/actions/python_dependencies/action.yaml'
+      - '.tool-versions'
+
+defaults:
+  run:
+    shell: bash
+
+concurrency:
+  group: ci-$ {{github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  setup:
+    name: Python Setup
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v3
+      - uses: ./.github/actions/python_dependencies
+
+  black:
+    name: Format Python with Black
+    runs-on: ubuntu-22.04
+    needs: setup
+    steps:
+      - uses: actions/checkout@v3
+      - uses: ./.github/actions/python_dependencies
+
+      # returns an error if black would reformat any file
+      - run: poetry run black . --check
+
+  mypy:
+    name: Type Check with MyPy
+    runs-on: ubuntu-22.04
+    needs: setup
+    steps:
+      - uses: actions/checkout@v3
+      - uses: ./.github/actions/python_dependencies
+
+      # returns an error if mypy detects a type error
+      - run: poetry run mypy .
+
+  pylint:
+    name: Lint Python using pylint
+    runs-on: ubuntu-22.04
+    needs: setup
+    steps:
+      - uses: actions/checkout@v3
+      - uses: ./.github/actions/python_dependencies
+
+      # returns an error if pylint detects any issues
+      - run: poetry run pylint src tests
+
+  pytest:
+    name: Run Tests with pytest 
+    runs-on: ubuntu-22.04
+    needs: setup
+
+    # env variables setup for connecting tests to postgres db
+    env:
+      DB_HOST: localhost
+      DB_PORT: 5432
+      DB_NAME: dmap_import_test
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+
+    # standup postgres db to test against
+    services:
+      postgres:
+        image: postgres:15.4
+        ports:
+          - 5432:5432
+        env:
+          POSTGRES_PASSWORD: ${{ env.DB_PASSWORD}}
+          POSTGRES_USER: ${{ env.DB_USER }}
+          POSTGRES_DB: ${{ env.DB_NAME }}
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v3
+      - uses: ./.github/actions/python_dependencies
+
+      # returns an error if pytests fail
+      - run: poetry run pytest
