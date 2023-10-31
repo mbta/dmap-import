@@ -7,7 +7,6 @@ authors = [
     "Ryan Rymarczyk <rrymarczyk@mbta.com>",
     "Mike Zappitello <mzappitello@mbta.com>"
 ]
-readme = "README.md"
 
 [tool.poetry.dependencies]
 python = "^3.12"
