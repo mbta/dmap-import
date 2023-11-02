@@ -5,7 +5,7 @@ ENV PYTHONUNBUFFERED 1
 
 # Install non python dependencies
 RUN apt-get update
-RUN apt-get install -y libpq-dev curl
+RUN apt-get install -y libpq-dev gcc curl
 
 # Fetch Amazon RDS certificate chain
 RUN curl https://s3.amazonaws.com/rds-downloads/rds-ca-2019-root.pem -o /usr/local/share/amazon-certs.pem
@@ -16,11 +16,12 @@ RUN chmod a=r /usr/local/share/amazon-certs.pem
 RUN pip install -U pip
 RUN pip install "poetry==1.6.1"
 
-WORKDIR /dmap_importer
-
-# copy pyproject, readme, and source code into the container
+# copy poetry and pyproject files and install dependencies
+WORKDIR /dmap_import/
 COPY pyproject.toml pyproject.toml
-COPY src src
+RUN poetry install --no-dev --no-interaction --no-ansi -v
 
-# install python dependencies and build project
+# Copy src directory to run against and build app
+COPY src src
+COPY alembic.ini alembic.ini
 RUN poetry install --no-dev --no-interaction --no-ansi -v
