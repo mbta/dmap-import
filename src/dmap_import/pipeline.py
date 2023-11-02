@@ -3,6 +3,8 @@ import time
 import sqlalchemy
 import alembic
 
+from dmap_import.util_rds import alembic_upgrade_to_head
+
 
 def start() -> None:
     """
@@ -11,6 +13,8 @@ def start() -> None:
     print("hello world")
     print(f"using SQLAlchemy Version {sqlalchemy.__version__}")
     print(f"using alembic Version {alembic.__version__}")
+
+    alembic_upgrade_to_head()
 
     while True:
         print("sleeping for 30s. zzzzzzzz")
