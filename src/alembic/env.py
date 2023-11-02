@@ -59,7 +59,6 @@ def run_migrations_online() -> None:
     """
     connectable = get_local_engine()
     target_metadata = SqlBase.metadata
-    print(target_metadata)
 
     with connectable.connect() as connection:
         context.configure(

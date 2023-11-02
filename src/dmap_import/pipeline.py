@@ -16,9 +16,8 @@ def start() -> None:
 
     alembic_upgrade_to_head()
 
-    while True:
-        print("sleeping for 30s. zzzzzzzz")
-        time.sleep(30)
+    print("sleeping for 30s. zzzzzzzz")
+    time.sleep(30)
 
 
 def main() -> None:

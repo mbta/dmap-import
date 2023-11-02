@@ -3,7 +3,16 @@ from sqlalchemy.orm import DeclarativeBase
 
 # pylint: disable=too-few-public-methods
 class SqlBase(DeclarativeBase):
-    """SqlAlchemy Schema Base Class"""
+    """
+    SqlAlchemy Schema Base Class
+
+    This design is recommended/expected for managing RDS Schema with SQLAlchemy
+    in multiple files. With this design, alembic pickups of the SqlBase Metadata
+    and is able to auto-generate schema migration files.
+
+    pylint does not like this design and complains about order of imports and
+    cyclic imports, so they are turned off for the individual schema imports
+    """
 
 
 # pylint: disable=cyclic-import
