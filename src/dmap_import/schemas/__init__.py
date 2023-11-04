@@ -32,3 +32,4 @@ from .device_event import DeviceEvents
 from .sale_transaction import SaleTransaction
 from .use_transaction_location import UseTransactionalLocation
 from .use_transaction_longitudinal import UseTransactionalLongitudinal
+from .api_metadata import ApiMetadata

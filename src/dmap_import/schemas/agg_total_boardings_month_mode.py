@@ -10,6 +10,7 @@ class AggTotalBoardingsMonthMode(SqlBase):
     __tablename__ = "agg_total_boardings_month_mode"
 
     pk_id = sa.Column(sa.Integer, primary_key=True)
+    dataset_id = sa.Column(sa.String(), nullable=True, index=True)
     year = sa.Column(sa.Integer, nullable=True)
     month = sa.Column(sa.String(), nullable=True)
     day_of_week = sa.Column(sa.String(), nullable=True)

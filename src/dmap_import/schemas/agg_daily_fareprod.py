@@ -10,6 +10,7 @@ class AggDailyFareprod(SqlBase):
     __tablename__ = "agg_daily_fareprod"
 
     pk_id = sa.Column(sa.Integer, primary_key=True)
+    dataset_id = sa.Column(sa.String(), nullable=True, index=True)
     date = sa.Column(sa.Date, nullable=True)
     service = sa.Column(sa.String(), nullable=True)
     day_of_week = sa.Column(sa.String(), nullable=True)

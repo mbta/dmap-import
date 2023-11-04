@@ -10,10 +10,11 @@ authors = [
 
 [tool.poetry.dependencies]
 python = "^3.12"
-sqlalchemy = "^2.0.22"
+sqlalchemy = {extras = ["mypy"], version = "^2.0.23"}
 alembic = "^1.12.1"
 boto3 = "^1.28.76"
 psycopg2 = "^2.9.9"
+requests = "^2.31.0"
 
 [tool.poetry.scripts]
 start = 'dmap_import.pipeline:main'
@@ -23,6 +24,8 @@ black = "^23.10.1"
 mypy = "^1.6.1"
 pylint = "^3.0.2"
 pytest = "^7.4.3"
+ipykernel = "^6.26.0"
+types-requests = "^2.31.0.10"
 
 [build-system]
 requires = ["poetry-core"]

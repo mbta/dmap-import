@@ -1,11 +1,14 @@
 import os
+import gzip
 import platform
+import subprocess
 import urllib.parse as urlparse
 from typing import Any, Dict, List, Tuple, Union
 
 import boto3
 import sqlalchemy as sa
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import DeclarativeBase
 from alembic.config import Config
 from alembic import command
 
@@ -31,6 +34,24 @@ def running_in_aws() -> bool:
     return bool(os.getenv("AWS_DEFAULT_REGION"))
 
 
+def get_db_host() -> str:
+    """
+    get current db_host string
+    """
+    db_host = os.environ.get("DB_HOST", "")
+
+    # on mac, when running in docker locally db is accessed by "0.0.0.0" ip
+    if db_host == "dmap_local_rds" and "macos" in platform.platform().lower():
+        db_host = "0.0.0.0"
+
+    # when running application locally in CLI for configuration
+    # and debugging, db is accessed by localhost ip
+    if not running_in_docker() and not running_in_aws():
+        db_host = "127.0.0.1"
+
+    return db_host
+
+
 def get_db_password() -> str:
     """
     function to provide rds password
@@ -54,6 +75,60 @@ def get_db_password() -> str:
         )
 
     return db_password
+
+
+def create_db_connection_string() -> str:
+    """
+    produce database connection string from environment
+    """
+    process_log = ProcessLogger("create_db_connection_string")
+    process_log.log_start()
+
+    db_host = get_db_host()
+    db_name = os.environ.get("DB_NAME")
+    db_password = os.environ.get("DB_PASSWORD", None)
+    db_port = os.environ.get("DB_PORT")
+    db_user = os.environ.get("DB_USER")
+    db_ssl_options = ""
+
+    assert db_host is not None
+    assert db_name is not None
+    assert db_port is not None
+    assert db_user is not None
+
+    process_log.add_metadata(
+        host=db_host, database_name=db_name, user=db_user, port=db_port
+    )
+
+    # use presence of DB_PASSWORD env var as indicator of connection type.
+    #
+    # if not available, assume cloud database where ssl is used and
+    # passwords are generated on the fly
+    #
+    # if is available, assume local dev usage
+    if db_password is None:
+        db_password = get_db_password()
+        db_password = urlparse.quote_plus(db_password)
+
+        assert db_password is not None
+        assert db_password != ""
+
+        # set the ssl cert path to the file that should be added to the
+        # lambda function at deploy time
+        db_ssl_cert = os.path.abspath(
+            os.path.join("/", "usr", "local", "share", "amazon-certs.pem")
+        )
+
+        assert os.path.isfile(db_ssl_cert)
+
+        # update the ssl options string to add to the database url
+        db_ssl_options = f"?sslmode=verify-full&sslrootcert={db_ssl_cert}"
+
+    process_log.log_complete()
+
+    return (
+        f"{db_user}:{db_password}@{db_host}:{db_port}/{db_name}{db_ssl_options}"
+    )
 
 
 def postgres_event_update_db_password(
@@ -82,61 +157,7 @@ def get_local_engine(
     process_logger = ProcessLogger("create_sql_engine")
     process_logger.log_start()
     try:
-        db_host = os.environ.get("DB_HOST")
-        db_name = os.environ.get("DB_NAME")
-        db_password = os.environ.get("DB_PASSWORD", None)
-        db_port = os.environ.get("DB_PORT")
-        db_user = os.environ.get("DB_USER")
-        db_ssl_options = ""
-
-        # when using docker, the db host env var will be "dmap_local_rds" but
-        # accessed via the "0.0.0.0" ip address (mac specific)
-        if (
-            db_host == "dmap_local_rds"
-            and "macos" in platform.platform().lower()
-        ):
-            db_host = "0.0.0.0"
-        if not running_in_docker() and not running_in_aws():
-            db_host = "127.0.0.1"
-
-        assert db_host is not None
-        assert db_name is not None
-        assert db_port is not None
-        assert db_user is not None
-
-        process_logger.add_metadata(
-            host=db_host, database_name=db_name, user=db_user, port=db_port
-        )
-
-        # use presence of password as indicator of connection type.
-        #
-        # if its not provided, assume cloud database where ssl is used and
-        # passwords are generated on the fly
-        #
-        # if it is provided, assume local docker database
-        if db_password is None:
-            db_password = get_db_password()
-            db_password = urlparse.quote_plus(db_password)
-
-            assert db_password is not None
-            assert db_password != ""
-
-            # set the ssl cert path to the file that should be added to the
-            # lambda function at deploy time
-            db_ssl_cert = os.path.abspath(
-                os.path.join("/", "usr", "local", "share", "amazon-certs.pem")
-            )
-
-            assert os.path.isfile(db_ssl_cert)
-
-            # update the ssl options string to add to the database url
-            db_ssl_options = f"?sslmode=verify-full&sslrootcert={db_ssl_cert}"
-
-        database_url = (
-            f"postgresql+psycopg2://{db_user}:"
-            f"{db_password}@{db_host}:{db_port}/{db_name}"
-            f"{db_ssl_options}"
-        )
+        database_url = f"postgresql+psycopg2://{create_db_connection_string()}"
 
         engine = sa.create_engine(
             database_url,
@@ -192,7 +213,13 @@ class DatabaseManager:
     def _get_schema_table(self, table: Any) -> sa.sql.schema.Table:
         if isinstance(table, sa.sql.schema.Table):
             return table
-        if isinstance(table, sa.orm.decl_api.DeclarativeMeta):
+        if isinstance(
+            table,
+            (
+                sa.orm.decl_api.DeclarativeMeta,
+                sa.orm.decl_api.DeclarativeAttributeIntercept,
+            ),
+        ):
             # mypy error: "DeclarativeMeta" has no attribute "__table__"
             return table.__table__  # type: ignore
 
@@ -230,6 +257,14 @@ class DatabaseManager:
         with self.session.begin() as cursor:
             return [row._asdict() for row in cursor.execute(select_query)]
 
+    def vaccuum_analyze(self, table: Any) -> None:
+        """RUN VACUUM (ANALYZE) on table"""
+        table_as = self._get_schema_table(table)
+
+        with self.session.begin() as cursor:
+            cursor.execute(sa.text("END TRANSACTION;"))
+            cursor.execute(sa.text(f"VACUUM (ANALYZE) {table_as};"))
+
     def truncate_table(
         self,
         table_to_truncate: Any,
@@ -255,9 +290,38 @@ class DatabaseManager:
         self.execute(sa.text(f"{truncate_query};"))
 
         # Execute VACUUM to avoid non-deterministic behavior during testing
-        with self.session.begin() as cursor:
-            cursor.execute(sa.text("END TRANSACTION;"))
-            cursor.execute(sa.text(f"VACUUM (ANALYZE) {truncat_as};"))
+        self.vaccuum_analyze(table_to_truncate)
+
+
+def copy_local_to_db(
+    local_path: str, destination_table: DeclarativeBase
+) -> None:
+    """
+    Load local file into DB using psql COPY command
+    will throw if psql command does not exit with code 0
+
+    :param local_path: path to local file that will be loaded
+    :param destination_table: SQLAlchemy table object for COPY destination
+    """
+    with gzip.open(local_path, "rt") as gzip_file:
+        local_columns = gzip_file.readline().strip().lower().split(",")
+
+    copy_command = (
+        f"\\COPY {destination_table.__table__} "
+        f"({','.join(local_columns)}) "
+        "FROM PROGRAM "
+        f"'gzip -dc {local_path}' "
+        "WITH CSV HEADER"
+    )
+
+    psql = [
+        "psql",
+        f"postgresql://{create_db_connection_string()}",
+        "-c",
+        f"{copy_command}",
+    ]
+
+    subprocess.run(psql, check=True)
 
 
 def get_alembic_config() -> Config:
