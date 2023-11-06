@@ -5,7 +5,6 @@ from typing import Any
 
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
-from sqlalchemy.engine import CursorResult
 
 from dmap_import.schemas.api_metadata import ApiMetadata
 from dmap_import.util_api import (
@@ -127,7 +126,7 @@ def drop_dataset_id_null(table: Any, db_manager: DatabaseManager) -> int:
     :return count of records removed from table
     """
     delete_dataset_id = sa.delete(table).where(table.dataset_id.is_(None))
-    delete_result: CursorResult = db_manager.execute(delete_dataset_id)
+    delete_result = db_manager.execute(delete_dataset_id)
 
     return delete_result.rowcount
 
@@ -180,7 +179,7 @@ def run_api_copy(url: str, destination_table: Any) -> None:
             delete_dataset_id = sa.delete(destination_table).where(
                 destination_table.dataset_id == result["dataset_id"]
             )
-            delete_result: CursorResult = db_manager.execute(delete_dataset_id)
+            delete_result = db_manager.execute(delete_dataset_id)
 
             # update dataset_id for all records just loaded into DB from
             # API downloaded file
@@ -189,7 +188,7 @@ def run_api_copy(url: str, destination_table: Any) -> None:
                 .where(destination_table.dataset_id.is_(None))
                 .values(dataset_id=result["dataset_id"])
             )
-            update_result: CursorResult = db_manager.execute(update_dataset_id)
+            update_result = db_manager.execute(update_dataset_id)
 
             insert_update_last_updated(url, result, db_manager)
 
