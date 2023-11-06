@@ -10,6 +10,7 @@ class AggDailyTransfersStation(SqlBase):
     __tablename__ = "agg_daily_transfers_station"
 
     pk_id = sa.Column(sa.Integer, primary_key=True)
+    dataset_id = sa.Column(sa.String(), nullable=True, index=True)
     date = sa.Column(sa.Date, nullable=True)
     day_of_week = sa.Column(sa.String(), nullable=True)
     station = sa.Column(sa.String(), nullable=True)

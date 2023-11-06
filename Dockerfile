@@ -5,7 +5,7 @@ ENV PYTHONUNBUFFERED 1
 
 # Install non python dependencies
 RUN apt-get update
-RUN apt-get install -y libpq-dev gcc curl
+RUN apt-get install -y libpq-dev gcc curl gzip postgresql-client
 
 # Fetch Amazon RDS certificate chain
 RUN curl https://s3.amazonaws.com/rds-downloads/rds-ca-2019-root.pem -o /usr/local/share/amazon-certs.pem

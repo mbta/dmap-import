@@ -4,6 +4,7 @@ services:
   dmap_local_rds:
     container_name: dmap_local_rds 
     image: postgres:15.4
+    shm_size: '2gb'
     env_file: .env
     environment:
       POSTGRES_DB: ${DB_NAME}
