@@ -1,0 +1,22 @@
+name: Deploy to Staging Environment
+
+on:
+  workflow_run:
+    workflows: ["Continuous Integration"]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+    
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v3
+      - uses: ./.github/actions/deploy
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          docker-repo: ${{ secrets.DOCKER_URI }}
+          env-name: staging
