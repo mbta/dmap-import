@@ -303,6 +303,12 @@ def copy_local_to_db(
     :param local_path: path to local file that will be loaded
     :param destination_table: SQLAlchemy table object for COPY destination
     """
+    copy_log = ProcessLogger(
+        "psql_copy",
+        destination_table=str(destination_table.__table__),
+    )
+    copy_log.log_start()
+
     with gzip.open(local_path, "rt") as gzip_file:
         local_columns = gzip_file.readline().strip().lower().split(",")
 
@@ -321,7 +327,10 @@ def copy_local_to_db(
         f"{copy_command}",
     ]
 
-    subprocess.run(psql, check=True)
+    process_result = subprocess.run(psql, check=True)
+
+    copy_log.add_metadata(exit_code=process_result.returncode)
+    copy_log.log_complete()
 
 
 def get_alembic_config() -> Config:

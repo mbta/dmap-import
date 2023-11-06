@@ -117,6 +117,21 @@ def insert_update_last_updated(
     db_manager.execute(insert)
 
 
+def drop_dataset_id_null(table: Any, db_manager: DatabaseManager) -> int:
+    """
+    DELETE any records from table where dataset_id is NULL
+
+    :param table: DELETE target table object
+    :param db_manager: database interaction class
+
+    :return count of records removed from table
+    """
+    delete_dataset_id = sa.delete(table).where(table.dataset_id.is_(None))
+    delete_result: CursorResult = db_manager.execute(delete_dataset_id)
+
+    return delete_result.rowcount
+
+
 def run_api_copy(url: str, destination_table: Any) -> None:
     """
     Perform DELETE and INSERT on DB destination_table using files retrieved from
@@ -143,48 +158,55 @@ def run_api_copy(url: str, destination_table: Any) -> None:
             end_date=result["end_date"],
         )
         api_result_log.log_start()
-        # temporary local file path for API Result file download
-        temp_file_path = f"/tmp/{url.split('/')[-1]}.csv.gz"
 
-        download_from_url(result["url"], temp_file_path)
+        try:
+            # temporary local file path for API Result file download
+            temp_file_path = f"/tmp/{url.split('/')[-1]}.csv.gz"
 
-        # verify that schema of file recieved from API download matches
-        # expected schema of destination_table
-        # will throw if schemas do not match
-        schema_compare(temp_file_path, destination_table)
+            download_from_url(result["url"], temp_file_path)
 
-        # to prepare for copy of API file download into DB,
-        # delete any records with matching dataset_id in destination_table
-        # also delete any records with no dataset_id, as they should be a
-        # related to a previous processing error
-        delete_dataset_id = sa.delete(destination_table).where(
-            sa.or_(
-                destination_table.dataset_id == result["dataset_id"],
-                destination_table.dataset_id.is_(None),
+            # compare schema of API file download to destination_table
+            # throw if additional columns found in file download
+            # otherwise will log differences
+            schema_compare(temp_file_path, destination_table)
+
+            # delete any records with dataset_id=NULL, as they should be a
+            # related to a previous processing error
+            drop_dataset_id_null(destination_table, db_manager)
+
+            copy_local_to_db(temp_file_path, destination_table)
+            db_manager.vaccuum_analyze(destination_table)
+
+            delete_dataset_id = sa.delete(destination_table).where(
+                destination_table.dataset_id == result["dataset_id"]
             )
-        )
-        delete_result: CursorResult = db_manager.execute(delete_dataset_id)
+            delete_result: CursorResult = db_manager.execute(delete_dataset_id)
 
-        copy_local_to_db(temp_file_path, destination_table)
-        db_manager.vaccuum_analyze(destination_table)
+            # update dataset_id for all records just loaded into DB from
+            # API downloaded file
+            update_dataset_id = (
+                sa.update(destination_table)
+                .where(destination_table.dataset_id.is_(None))
+                .values(dataset_id=result["dataset_id"])
+            )
+            update_result: CursorResult = db_manager.execute(update_dataset_id)
 
-        # update dataset_id for all records just loaded into DB from
-        # API downloaded file
-        update_dataset_id = (
-            sa.update(destination_table)
-            .where(destination_table.dataset_id.is_(None))
-            .values(dataset_id=result["dataset_id"])
-        )
-        update_result: CursorResult = db_manager.execute(update_dataset_id)
+            insert_update_last_updated(url, result, db_manager)
 
-        insert_update_last_updated(url, result, db_manager)
+            api_result_log.add_metadata(
+                db_records_deleted=delete_result.rowcount,
+                db_records_added=update_result.rowcount,
+            )
 
-        # clean up temp API file download
-        os.remove(temp_file_path)
+            api_result_log.log_complete()
 
-        api_result_log.add_metadata(
-            db_records_deleted=delete_result.rowcount,
-            db_records_added=update_result.rowcount,
-        )
+        except Exception as exception:
+            api_result_log.log_failure(exception)
+            raise exception
 
-        api_result_log.log_complete()
+        finally:
+            if os.path.exists(temp_file_path):
+                # clean up temp API file download
+                os.remove(temp_file_path)
+
+            drop_dataset_id_null(destination_table, db_manager)

@@ -1,4 +1,5 @@
 import os
+import time
 from typing import Optional, List, TypedDict
 import datetime
 import requests
@@ -45,13 +46,24 @@ def download_from_url(url: str, local_path: str) -> Optional[str]:
     )
     download_log.log_start()
 
-    with requests.get(url, stream=True, timeout=60 * 5) as response:
-        # raise HTTP error, if occured
-        response.raise_for_status()
-        with open(local_path, "wb") as local_file:
-            for file_chunk in response.iter_content(chunk_size=None):
-                # chunk_size=None will write chunks in whatever size they are recieved
-                local_file.write(file_chunk)
+    max_retries = 3
+    for retry_count in range(max_retries):
+        download_log.add_metadata(retry_count=retry_count)
+        with requests.get(url, stream=True, timeout=60 * 5) as response:
+            # retry if status_code not 200
+            if response.status_code != 200:
+                if retry_count == max_retries - 1:
+                    response.raise_for_status()
+                # try again in 15 seconds
+                time.sleep(15)
+                continue
+
+            # download file
+            with open(local_path, "wb") as local_file:
+                for file_chunk in response.iter_content(chunk_size=None):
+                    # chunk_size=None will write chunks in whatever size they are received
+                    local_file.write(file_chunk)
+        break
 
     file_size_mb = os.path.getsize(local_path) / (1024 * 1024)
     download_log.add_metadata(file_size_mb=f"{file_size_mb:.4f}")
@@ -112,24 +124,31 @@ def get_api_results(url: str, db_manager: DatabaseManager) -> List[ApiResult]:
 
     if "datasetpublicusersapi" in url:
         params["apikey"] = os.getenv("PUBLIC_KEY", "")
-    if "datasetcontrolleduserapi" in url:
+    elif "datasetcontrolleduserapi" in url:
         params["apikey"] = os.getenv("CONTROLLED_KEY", "")
 
-    # execture GET request from CUBIC API Endpoint
-    # will throw if 200 status_code not recived
-    # if "success" attribute of response is not True will log and throw
-    response = requests.get(url, params=params, timeout=60)
-    response.raise_for_status()
+    # execute GET request from CUBIC API Endpoint
+    # will log and throw if 200 status_code not recieved
+    # or if "success" attribute of ApiResponse is not True
+    max_retries = 3
+    for retry_count in range(max_retries):
+        api_results_log.add_metadata(retry_count=retry_count)
+        response = requests.get(url, params=params, timeout=60)
+        if response.status_code in (200, 503):
+            break
+        # try again in 15 seconds
+        time.sleep(15)
+
+    if response.status_code != 200 or not response.json()["success"]:
+        api_results_log.add_metadata(
+            status_code=response.status_code,
+            response=response.text,
+        )
+        exception = AttributeError("No Results object recieved.")
+        api_results_log.log_failure(exception=exception)
+        raise exception
 
     json_response: ApiResponse = response.json()
-
-    if not json_response["success"]:
-        api_results_log.add_metadata(
-            json_response=str(json_response),
-            text_response=response.text,
-        )
-        api_results_log.log_failure(exception=AttributeError())
-        raise KeyError(f"API GET Failure: {json_response}")
 
     # API Results appear to be sorted by `last_updated` by default, but this
     # sorting is required for proper updated of `last_updated` column
