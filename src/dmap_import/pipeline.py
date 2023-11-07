@@ -9,6 +9,7 @@ from dmap_import.util_logging import ProcessLogger
 
 def validate_environment(
     required_variables: List[str],
+    private_variables: List[str] = [],
     validate_db: bool = False,
 ) -> None:
     """
@@ -36,7 +37,10 @@ def validate_environment(
         value = os.environ.get(key, None)
         if value is None:
             missing_required.append(key)
-        process_logger.add_metadata(**{key: value})
+        if key not in private_variables:
+            process_logger.add_metadata(**{key: value})
+        else:
+            process_logger.add_metadata(**{key: "**********"})
 
     # if db password is missing, db region is required to generate a token to
     # use as the password to the cloud database
@@ -98,6 +102,10 @@ def main() -> None:
             "CONTROLLED_KEY",
             "PUBLIC_KEY",
             "DMAP_BASE_URL",
+        ],
+        private_variables=[
+            "CONTROLLED_KEY",
+            "PUBLIC_KEY",
         ],
         validate_db=True,
     )
