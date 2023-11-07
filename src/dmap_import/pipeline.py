@@ -1,5 +1,5 @@
 import os
-from typing import List
+from typing import List, Optional
 
 from dmap_import.util_rds import alembic_upgrade_to_head
 from dmap_import.api_job_list import produce_job_list
@@ -9,13 +9,16 @@ from dmap_import.util_logging import ProcessLogger
 
 def validate_environment(
     required_variables: List[str],
-    private_variables: List[str] = [],
+    private_variables: Optional[List[str]] = None,
     validate_db: bool = False,
 ) -> None:
     """
     ensure that the environment has all the variables its required to have
     before starting triggering main, making certain errors easier to debug.
     """
+    if private_variables is None:
+        private_variables = []
+
     process_logger = ProcessLogger("validate_env")
     process_logger.log_start()
 
