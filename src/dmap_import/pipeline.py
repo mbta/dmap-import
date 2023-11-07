@@ -1,5 +1,5 @@
 import os
-from typing import List
+from typing import List, Optional
 
 from dmap_import.util_rds import alembic_upgrade_to_head
 from dmap_import.api_job_list import produce_job_list
@@ -9,12 +9,16 @@ from dmap_import.util_logging import ProcessLogger
 
 def validate_environment(
     required_variables: List[str],
+    private_variables: Optional[List[str]] = None,
     validate_db: bool = False,
 ) -> None:
     """
     ensure that the environment has all the variables its required to have
     before starting triggering main, making certain errors easier to debug.
     """
+    if private_variables is None:
+        private_variables = []
+
     process_logger = ProcessLogger("validate_env")
     process_logger.log_start()
 
@@ -36,7 +40,10 @@ def validate_environment(
         value = os.environ.get(key, None)
         if value is None:
             missing_required.append(key)
-        process_logger.add_metadata(**{key: value})
+        if key not in private_variables:
+            process_logger.add_metadata(**{key: value})
+        else:
+            process_logger.add_metadata(**{key: "**********"})
 
     # if db password is missing, db region is required to generate a token to
     # use as the password to the cloud database
@@ -98,6 +105,10 @@ def main() -> None:
             "CONTROLLED_KEY",
             "PUBLIC_KEY",
             "DMAP_BASE_URL",
+        ],
+        private_variables=[
+            "CONTROLLED_KEY",
+            "PUBLIC_KEY",
         ],
         validate_db=True,
     )
