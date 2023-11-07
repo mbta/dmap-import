@@ -36,5 +36,5 @@ runs:
         ECS_CLUSTER: dmap-import
         ECS_SERVICE: dmap-import-${{ inputs.env-name }}
         ECS_TASK_DEF: dmap-import-${{ inputs.env-name }}
-        DOCKER_TAG: ${{ steps.build-push.outputs.docker-tag }}
-        
+        DOCKER_TAG: ${{ steps.build-push-ecr.outputs.docker-tag }}
+ 
