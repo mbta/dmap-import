@@ -13,9 +13,6 @@ set -e -u
 # ECS_TASK_DEF: task definition to update revision for
 # DOCKER_TAG: tag for docker image to use in new task definition
 
-# set default region so we don't have to specify --region everywhere
-export AWS_DEFAULT_REGION="us-east-1"
-
 # get the contents of the template task definition from ECS 
 echo "Retrieving ${ECS_TASK_DEF}-template task definition..."
 taskdefinition="$(aws ecs describe-task-definition --task-definition "${ECS_TASK_DEF}-template")"
@@ -46,9 +43,18 @@ aws ecs register-task-definition \
 --cpu "$(echo "${taskdefinition}" | jq -r '.taskDefinition.cpu')" \
 --memory "$(echo "${taskdefinition}" | jq -r '.taskDefinition.memory')"
 
-# get the new revision of this task and redeploy the cluster with it
-newrevision="$(aws ecs describe-task-definition --task-definition "${ECS_TASK_DEF}" | \
-  jq -r '.taskDefinition.revision')"
+# deploy the new task to our scheduled ecs task
+#
+# inspired by https://doylew.medium.com/updating-aws-ecs-task-definition-and-scheduled-tasks-using-aws-cli-commands-through-deployment-jobs-7cef82262236
 
-echo "Updating Service ${ECS_SERVICE} to use Task Definition ${newrevision}..."
-aws ecs update-service --cluster="${ECS_CLUSTER}" --service="${ECS_SERVICE}" --task-definition "${ECS_TASK_DEF}:${newrevision}"
+# get the task definition arn for the new task definition
+newtaskdefarn="$(aws ecs describe-task-definition --task-definition "${ECS_TASK_DEF}" | \
+    jq -r '.taskDefinition.taskDefinitionArn')"
+# get the events rule for triggering the scheduled task
+eventsrule=$(aws events list-targets-by-rule --rule "run-${ECS_TASK_DEF}")
+# update the events rule json with the new task def arn
+echo $eventsrule | \
+    jq '.Targets[0].EcsParameters.TaskDefinitionArn='\"${newtaskdefarn}\" > \
+    tempEvents.json
+# update the event on aws with temp json
+aws events put-targets --rule "run-${ECS_TASK_DEF}" --cli-input-json file://tempEvents.json
