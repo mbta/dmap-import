@@ -58,20 +58,22 @@ def download_from_url(url: str, local_path: str) -> Optional[str]:
                 for file_chunk in response.iter_content(chunk_size=None):
                     # chunk_size=None will write chunks in whatever size they are received
                     local_file.write(file_chunk)
-
             response.close()
             break
 
-        except Exception as exception:
-            if retry_count == max_retries:
-                download_log.add_metadata(
-                    staus_code=response.status_code,
-                    response=response.text,
-                )
-                download_log.log_failure(exception)
-                raise exception
-            # wait and try again
-            time.sleep(15)
+        except Exception as _:
+            if retry_count < max_retries:
+                # wait and try again
+                time.sleep(15)
+
+    else:
+        download_log.add_metadata(
+            status_code=response.status_code,
+            response=response.text,
+        )
+        exception = requests.HTTPError(response.text)
+        download_log.log_failure(exception)
+        raise exception
 
     file_size_mb = os.path.getsize(local_path) / (1024 * 1024)
     download_log.add_metadata(file_size_mb=f"{file_size_mb:.4f}")
@@ -152,16 +154,18 @@ def get_api_results(url: str, db_manager: DatabaseManager) -> List[ApiResult]:
                 raise AttributeError("No Results object recieved.")
             break
 
-        except Exception as exception:
-            if retry_count == max_retries:
-                api_results_log.add_metadata(
-                    staus_code=response.status_code,
-                    response=response.text,
-                )
-                api_results_log.log_failure(exception)
-                raise exception
-            # wait and try again
-            time.sleep(15)
+        except Exception as _:
+            if retry_count < max_retries:
+                # wait and try again
+                time.sleep(15)
+    else:
+        api_results_log.add_metadata(
+            status_code=response.status_code,
+            response=response.text,
+        )
+        exception = requests.HTTPError(response.text)
+        api_results_log.log_failure(exception)
+        raise exception
 
     # API Results appear to be sorted by `last_updated` by default, but this
     # sorting is required for proper updated of `last_updated` column
