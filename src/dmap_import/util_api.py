@@ -47,23 +47,33 @@ def download_from_url(url: str, local_path: str) -> Optional[str]:
     download_log.log_start()
 
     max_retries = 3
-    for retry_count in range(max_retries):
+    for retry_count in range(max_retries + 1):
         download_log.add_metadata(retry_count=retry_count)
-        with requests.get(url, stream=True, timeout=60 * 5) as response:
-            # retry if status_code not 200
-            if response.status_code != 200:
-                if retry_count == max_retries - 1:
-                    response.raise_for_status()
-                # try again in 15 seconds
-                time.sleep(15)
-                continue
+        try:
+            response = requests.get(url, stream=True, timeout=15)
+            response.raise_for_status()
 
             # download file
             with open(local_path, "wb") as local_file:
                 for file_chunk in response.iter_content(chunk_size=None):
                     # chunk_size=None will write chunks in whatever size they are received
                     local_file.write(file_chunk)
-        break
+            response.close()
+            break
+
+        except Exception as _:
+            if retry_count < max_retries:
+                # wait and try again
+                time.sleep(15)
+
+    else:
+        download_log.add_metadata(
+            status_code=response.status_code,
+            response=response.text,
+        )
+        exception = requests.HTTPError(response.text)
+        download_log.log_failure(exception)
+        raise exception
 
     file_size_mb = os.path.getsize(local_path) / (1024 * 1024)
     download_log.add_metadata(file_size_mb=f"{file_size_mb:.4f}")
@@ -131,24 +141,31 @@ def get_api_results(url: str, db_manager: DatabaseManager) -> List[ApiResult]:
     # will log and throw if 200 status_code not recieved
     # or if "success" attribute of ApiResponse is not True
     max_retries = 3
-    for retry_count in range(max_retries):
+    for retry_count in range(max_retries + 1):
         api_results_log.add_metadata(retry_count=retry_count)
-        response = requests.get(url, params=params, timeout=60)
-        if response.status_code in (200, 503):
-            break
-        # try again in 15 seconds
-        time.sleep(15)
+        try:
+            response = requests.get(url, params=params, timeout=15)
+            response.raise_for_status()
+            response.close()
 
-    if response.status_code != 200 or not response.json()["success"]:
+            json_response: ApiResponse = response.json()
+
+            if not json_response["success"]:
+                raise AttributeError("No Results object recieved.")
+            break
+
+        except Exception as _:
+            if retry_count < max_retries:
+                # wait and try again
+                time.sleep(15)
+    else:
         api_results_log.add_metadata(
             status_code=response.status_code,
             response=response.text,
         )
-        exception = AttributeError("No Results object recieved.")
-        api_results_log.log_failure(exception=exception)
+        exception = requests.HTTPError(response.text)
+        api_results_log.log_failure(exception)
         raise exception
-
-    json_response: ApiResponse = response.json()
 
     # API Results appear to be sorted by `last_updated` by default, but this
     # sorting is required for proper updated of `last_updated` column
