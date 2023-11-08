@@ -7,8 +7,9 @@ ENV PYTHONUNBUFFERED 1
 RUN apt-get update
 RUN apt-get install -y libpq-dev gcc curl gzip postgresql-client
 
-# Fetch Amazon RDS certificate chain
-RUN curl https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem -o /usr/local/share/amazon-certs.pem
+# Fetch Amazon RDS certificate chain for Aurora Serverless v2
+# https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/aurora-serverless-v2-administration.html#aurora-serverless-v2.tls
+RUN curl https://www.amazontrust.com/repository/AmazonRootCA1.pem -o /usr/local/share/amazon-certs.pem
 RUN chmod a=r /usr/local/share/amazon-certs.pem
 
 # Install poetry
