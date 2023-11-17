@@ -12,6 +12,7 @@ from sqlalchemy.orm import DeclarativeBase
 from alembic.config import Config
 from alembic import command
 
+from dmap_import.util_aws import running_in_aws
 from dmap_import.util_logging import ProcessLogger
 
 
@@ -25,13 +26,6 @@ def running_in_docker() -> bool:
         or os.path.isfile(path)
         and any("docker" in line for line in open(path, encoding="UTF-8"))
     )
-
-
-def running_in_aws() -> bool:
-    """
-    return True if running on aws, else False
-    """
-    return bool(os.getenv("AWS_DEFAULT_REGION"))
 
 
 def get_db_host() -> str:
