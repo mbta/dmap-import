@@ -3,7 +3,7 @@ from typing import List, Optional
 
 from dmap_import.api_copy_job import run_api_copy
 from dmap_import.api_job_list import produce_job_list
-from dmap_import.util_aws import check_for_parallel_tasks
+from dmap_import.util_aws import running_in_aws, check_for_parallel_tasks
 from dmap_import.util_logging import ProcessLogger
 from dmap_import.util_rds import alembic_upgrade_to_head
 
@@ -11,6 +11,7 @@ from dmap_import.util_rds import alembic_upgrade_to_head
 def validate_environment(
     required_variables: List[str],
     private_variables: Optional[List[str]] = None,
+    aws_variables: Optional[List[str]] = None,
     validate_db: bool = False,
 ) -> None:
     """
@@ -25,6 +26,9 @@ def validate_environment(
 
     # every pipeline needs a service name for logging
     required_variables.append("SERVICE_NAME")
+
+    if aws_variables and running_in_aws():
+        required_variables += aws_variables
 
     # add required database variables
     if validate_db:
@@ -106,11 +110,14 @@ def main() -> None:
             "CONTROLLED_KEY",
             "PUBLIC_KEY",
             "DMAP_BASE_URL",
-            "ENVIRONMENT",
         ],
         private_variables=[
             "CONTROLLED_KEY",
             "PUBLIC_KEY",
+        ],
+        aws_variables=[
+            "ECS_CLUSTER",
+            "ECS_TASK_GROUP"
         ],
         validate_db=True,
     )

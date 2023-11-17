@@ -22,25 +22,28 @@ def check_for_parallel_tasks() -> None:
     process_logger.log_start()
 
     client = boto3.client("ecs")
-    dmap_ecs_cluster = "dmap-import"
-    environment_name = os.environ["ENVIRONMENT"]
+    dmap_ecs_cluster = os.environ["ECS_CLUSTER"]
+    dmap_ecs_task_group = os.environ["ECS_TASK_GROUP"]
 
     # get all of the tasks running on the cluster
     task_arns = client.list_tasks(cluster=dmap_ecs_cluster)["taskArns"]
 
     # if tasks are running on the cluster, get their descriptions and check to
-    # see if any match the group for this task.
-    #
-    # if the group matches, raise an exception that will terminate the process
+    # count matches the ecs task group.
+    match_count = 0
     if task_arns:
         running_tasks = client.describe_tasks(
             cluster=dmap_ecs_cluster, tasks=task_arns
         )["tasks"]
 
         for task in running_tasks:
-            if f"family:dmap-import-{environment_name}" == task["group"]:
-                exception = Exception("Multiple Tasks Running")
-                process_logger.log_failure(exception)
-                raise exception
+            if dmap_ecs_task_group == task["group"]:
+                match_count += 1
+
+    # if the group matches, raise an exception that will terminate the process
+    if match_count > 1:
+        exception = Exception("Multiple Tasks Running")
+        process_logger.log_failure(exception)
+        raise exception
 
     process_logger.log_complete()
