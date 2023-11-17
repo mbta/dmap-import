@@ -115,10 +115,7 @@ def main() -> None:
             "CONTROLLED_KEY",
             "PUBLIC_KEY",
         ],
-        aws_variables=[
-            "ECS_CLUSTER",
-            "ECS_TASK_GROUP"
-        ],
+        aws_variables=["ECS_CLUSTER", "ECS_TASK_GROUP"],
         validate_db=True,
     )
 
