@@ -29,6 +29,18 @@ class ApiResponse(TypedDict):
     results: List[ApiResult]
 
 
+def apikey_from_environment(url: str) -> Optional[str]:
+    """
+    Get the `apikey` value from the environment
+    """
+    default = None
+    if "datasetpublicusersapi" in url:
+        return os.getenv("PUBLIC_KEY", default)
+    if "datasetcontrolleduserapi" in url:
+        return os.getenv("CONTROLLED_KEY", default)
+    return default
+
+
 def download_from_url(url: str, local_path: str) -> Optional[str]:
     """
     Download file from url to local_path.
@@ -122,6 +134,7 @@ def get_api_results(url: str, db_manager: DatabaseManager) -> List[ApiResult]:
     # add params to GET request
     # last_updated if last_update_dt available from ApiMetadata table
     # apikey based on contents of url endpoint string
+    headers = {}
     params = {}
     if db_result:
         last_updated_dt: datetime.datetime = db_result[0]["last_updated"]
@@ -132,10 +145,11 @@ def get_api_results(url: str, db_manager: DatabaseManager) -> List[ApiResult]:
             last_updated_dt=last_updated_dt.isoformat()
         )
 
-    if "datasetpublicusersapi" in url:
-        params["apikey"] = os.getenv("PUBLIC_KEY", "")
-    elif "datasetcontrolleduserapi" in url:
-        params["apikey"] = os.getenv("CONTROLLED_KEY", "")
+    apikey = apikey_from_environment(url)
+
+    if apikey:
+        headers["apikey"] = apikey
+        params["apikey"] = apikey
 
     # execute GET request from CUBIC API Endpoint
     # will log and throw if 200 status_code not recieved
@@ -144,7 +158,9 @@ def get_api_results(url: str, db_manager: DatabaseManager) -> List[ApiResult]:
     for retry_count in range(max_retries + 1):
         api_results_log.add_metadata(retry_count=retry_count)
         try:
-            response = requests.get(url, params=params, timeout=15)
+            response = requests.get(
+                url, headers=headers, params=params, timeout=15
+            )
             response.raise_for_status()
             response.close()
 
