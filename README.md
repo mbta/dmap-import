@@ -9,4 +9,18 @@ Import DMAP data into a PostgreSQL database
 * run `docker-compose build` to build the docker images for local testing
     * run `docker-compose up dmap_local_rds` to stand up a local postgres db
         * this imnage could be used when running pytest
-    * run `docker-compose up dmap_importer` to run the importer application
+    * run `docker-compose up dmap_import` to run the importer application
+
+### Outside of Docker
+
+1. Navigate to repository directory.
+2. Update `.env` variable. Source it `source .env`.
+3. Run `poetry run start` to run the ingestion process.
+4. Run `psql postgresql://postgres:postgres@127.0.0.1:5432/dmap_importer` to get into the database. Alternatively, after `docker-compose up`, you can:
+    1. `docker exec -it dmap_local_rds bash` 
+    2. `psql -U postgres -d dmap_importer`
+5. Run format, type and lint checker:
+    * `poetry run black .`
+    * `poetry run mypy .`
+    * `poetry run pylint src tests`
+6. Run tests, `poetry run pytest`.
