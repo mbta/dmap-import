@@ -182,3 +182,4 @@ class SaleTransaction(SqlBase):
     discount_amount = sa.Column(sa.BigInteger, nullable=True)
     _exported_dtm = sa.Column(sa.DateTime, nullable=True)
     promotion_id = sa.Column(sa.String(), nullable=True)
+    reference = sa.Column(sa.String(), nullable=True)
