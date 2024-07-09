@@ -1,8 +1,15 @@
+
 # dmap-import
 Import DMAP data into a PostgreSQL database
 
-## Dev Setup
-* Install ASDF ([installation guide](https://asdf-vm.com/guide/getting-started.html))
+## Dev Setup (Mac)
+
+* Install ASDF, Python3, Postgres
+```sh
+brew install asdf
+brew install python3
+brew install postgresql
+```
 * run `asdf install` to install tools via asdf
 * run `poetry install` to install python dependencies
 * run `cp .env.template .env` and fill out any missing environment variables
@@ -24,3 +31,11 @@ Import DMAP data into a PostgreSQL database
     * `poetry run mypy .`
     * `poetry run pylint src tests`
 6. Run tests, `poetry run pytest`.
+
+### Alembic
+
+To create new migration:
+```sh
+alembic revision -m "adding a new column"
+# [optional] rename generated file so as to sort migrations by name by prepending '0xx_'
+```
