@@ -156,3 +156,4 @@ class UseTransactionalLongitudinal(SqlBase):
     _exported_dtm = sa.Column(sa.DateTime, nullable=True)
     promotion_id = sa.Column(sa.String(), nullable=True)
     reference = sa.Column(sa.String(), nullable=True)
+    reference_notes = sa.Column(sa.String(), nullable=True)
