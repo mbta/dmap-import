@@ -156,3 +156,5 @@ class UseTransactionalLongitudinal(SqlBase):
     _exported_dtm = sa.Column(sa.DateTime, nullable=True)
     promotion_id = sa.Column(sa.String(), nullable=True)
     reference_notes = sa.Column(sa.String(), nullable=True)
+    multi_ride_id = sa.Column(sa.BigInteger, nullable=True)
+    token_id = sa.Column(sa.BigInteger, nullable=True)
