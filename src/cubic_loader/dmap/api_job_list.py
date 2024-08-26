@@ -2,35 +2,19 @@ import os
 from typing import TypedDict, List, Any, Union
 from sqlalchemy.orm import DeclarativeBase
 
-from dmap_import.schemas.agg_average_boardings_by_day_type_month import (
-    AggAvgBoardingsByDayTypeMonth,
-)
-from dmap_import.schemas.agg_boardings_fareprod_mode_month import (
-    AggBoardingsFareprodModeMonth,
-)
-from dmap_import.schemas.agg_daily_fareprod_route import AggDailyFareprodRoute
-from dmap_import.schemas.agg_daily_fareprod_station import (
-    AggDailyFareprodStation,
-)
-from dmap_import.schemas.agg_daily_fareprod import AggDailyFareprod
-from dmap_import.schemas.agg_daily_transfers_route import AggDailyTransfersRoute
-from dmap_import.schemas.agg_daily_transfers_station import (
-    AggDailyTransfersStation,
-)
-from dmap_import.schemas.agg_hourly_entry_exit_count import (
-    AggHourlyEntryExitCount,
-)
-from dmap_import.schemas.agg_total_boardings_month_mode import (
-    AggTotalBoardingsMonthMode,
-)
-from dmap_import.schemas.device_event import DeviceEvents
-from dmap_import.schemas.sale_transaction import SaleTransaction
-from dmap_import.schemas.use_transaction_location import (
-    UseTransactionalLocation,
-)
-from dmap_import.schemas.use_transaction_longitudinal import (
-    UseTransactionalLongitudinal,
-)
+from cubic_loader.dmap.schemas.agg_average_boardings_by_day_type_month import AggAvgBoardingsByDayTypeMonth
+from cubic_loader.dmap.schemas.agg_boardings_fareprod_mode_month import AggBoardingsFareprodModeMonth
+from cubic_loader.dmap.schemas.agg_daily_fareprod_route import AggDailyFareprodRoute
+from cubic_loader.dmap.schemas.agg_daily_fareprod_station import AggDailyFareprodStation
+from cubic_loader.dmap.schemas.agg_daily_fareprod import AggDailyFareprod
+from cubic_loader.dmap.schemas.agg_daily_transfers_route import AggDailyTransfersRoute
+from cubic_loader.dmap.schemas.agg_daily_transfers_station import AggDailyTransfersStation
+from cubic_loader.dmap.schemas.agg_hourly_entry_exit_count import AggHourlyEntryExitCount
+from cubic_loader.dmap.schemas.agg_total_boardings_month_mode import AggTotalBoardingsMonthMode
+from cubic_loader.dmap.schemas.device_event import DeviceEvents
+from cubic_loader.dmap.schemas.sale_transaction import SaleTransaction
+from cubic_loader.dmap.schemas.use_transaction_location import UseTransactionalLocation
+from cubic_loader.dmap.schemas.use_transaction_longitudinal import UseTransactionalLongitudinal
 
 
 class CopyJob(TypedDict):

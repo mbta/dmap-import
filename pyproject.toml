@@ -1,7 +1,7 @@
 [tool.poetry]
-name = "dmap_import"
+name = "cubic_loader"
 version = "0.1.0"
-description = "MBTA Application for Archiving Cubic DMAP Data in Postgres"
+description = "MBTA Application for Archiving Cubic Data in Postgres"
 authors = [
     "MBTA CTD <developer@mbta.com>",
     "Ryan Rymarczyk <rrymarczyk@mbta.com>",
@@ -12,27 +12,30 @@ authors = [
 python = "^3.12"
 sqlalchemy = {extras = ["mypy"], version = "^2.0.23"}
 alembic = "^1.12.1"
-boto3 = "^1.28.76"
+boto3 = "^1.35.5"
 psycopg2 = "^2.9.9"
 requests = "^2.31.0"
+polars = "^1.5.0"
+psutil = "^6.0.0"
 
 [tool.poetry.scripts]
-start = 'dmap_import.pipeline:main'
+start = 'cubic_loader.pipeline:main'
 
 [tool.poetry.group.dev.dependencies]
-black = "^23.10.1"
-mypy = "^1.6.1"
-pylint = "^3.0.2"
-pytest = "^7.4.3"
-ipykernel = "^6.26.0"
-types-requests = "^2.31.0.10"
+black = "^24.8.0"
+mypy = "^1.11.2"
+pylint = "^3.2.6"
+pytest = "^8.3.2"
+ipykernel = "^6.29.5"
+types-requests = "^2.32.0.20240712"
+types-python-dateutil = "^2.9.0.20240821"
 
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.black]
-line-length = 80
+line-length = 120
 target-version = ['py312']
 
 [tool.mypy]
@@ -55,9 +58,7 @@ disable = [
   "line-too-long",
 ]
 good-names = ["e", "i", "s"]
-max-line-length = 80
+max-line-length = 120
 min-similarity-lines = 10
-# https://github.com/PyCQA/pylint/issues/7090
-ignored-classes = ['sqlalchemy.orm.session.sessionmaker']
 # ignore the alembic directory. 
 ignore-paths = ["^src/alembic/.*$"]

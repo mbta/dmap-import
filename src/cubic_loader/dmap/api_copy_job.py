@@ -2,21 +2,18 @@ import os
 import gzip
 import datetime
 from typing import Any
+from tempfile import TemporaryDirectory
 
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
-from dmap_import.schemas.api_metadata import ApiMetadata
-from dmap_import.util_api import (
-    download_from_url,
-    get_api_results,
-    ApiResult,
-)
-from dmap_import.util_rds import (
-    copy_local_to_db,
-    DatabaseManager,
-)
-from dmap_import.util_logging import ProcessLogger
+from cubic_loader.dmap.schemas import ApiMetadata
+from cubic_loader.dmap.dmap_api import download_from_url
+from cubic_loader.dmap.dmap_api import get_api_results
+from cubic_loader.dmap.dmap_api import ApiResult
+from cubic_loader.utils.postgres import copy_local_to_db
+from cubic_loader.utils.postgres import DatabaseManager
+from cubic_loader.utils.logger import ProcessLogger
 
 LAST_UPDATED_FORMAT = "%Y-%m-%dT%H:%M:%S.%f"
 
@@ -38,7 +35,6 @@ def schema_compare(local_path: str, destination_table: Any) -> None:
         local_path=local_path,
         destination_table=str(destination_table.__table__),
     )
-    schema_compare_log.log_start()
 
     table = destination_table.__table__
     ignore_columns = (
@@ -47,14 +43,10 @@ def schema_compare(local_path: str, destination_table: Any) -> None:
     )
     # table.columns object produces column names with table name pre-pended
     # must remove table pre-pend for comparison
-    destination_columns = [
-        str(col).replace(f"{table}.", "") for col in table.columns
-    ]
+    destination_columns = [str(col).replace(f"{table}.", "") for col in table.columns]
     # drop ignore_columns from comparison list, as they won't exist in
     # downloaded file
-    destination_columns = [
-        col for col in destination_columns if col not in ignore_columns
-    ]
+    destination_columns = [col for col in destination_columns if col not in ignore_columns]
 
     with gzip.open(local_path, "rt") as gzip_file:
         local_columns = gzip_file.readline().strip().lower().split(",")
@@ -75,21 +67,14 @@ def schema_compare(local_path: str, destination_table: Any) -> None:
     )
 
     if not_in_dest:
-        exception = IndexError(
-            (
-                f"Columns: '{' | '.join(not_in_dest)}' "
-                f"found in {local_path} but not in {table}"
-            )
-        )
+        exception = IndexError((f"Columns: '{' | '.join(not_in_dest)}' " f"found in {local_path} but not in {table}"))
         schema_compare_log.log_failure(exception=exception)
         raise exception
 
     schema_compare_log.log_complete()
 
 
-def insert_update_last_updated(
-    url: str, result: ApiResult, db_manager: DatabaseManager
-) -> None:
+def insert_update_last_updated(url: str, result: ApiResult, db_manager: DatabaseManager) -> None:
     """
     Set 'last_updated' value for 'url' in ApiMetadata table
     Attempts INSERT, if url already in table will conflict on url UNIQUE
@@ -100,9 +85,7 @@ def insert_update_last_updated(
     :param db_manager: database interaction class
     """
     # create datetime object from `last_updated` ApiResult value
-    result_last_updated = datetime.datetime.strptime(
-        result["last_updated"], LAST_UPDATED_FORMAT
-    )
+    result_last_updated = datetime.datetime.strptime(result["last_updated"], LAST_UPDATED_FORMAT)
 
     insert = postgresql.insert(ApiMetadata).values(
         url=url,
@@ -156,29 +139,29 @@ def run_api_copy(url: str, destination_table: Any) -> None:
             start_date=result["start_date"],
             end_date=result["end_date"],
         )
-        api_result_log.log_start()
 
         try:
             # temporary local file path for API Result file download
-            temp_file_path = f"/tmp/{url.split('/')[-1]}.csv.gz"
+            temp_file = result["url"].split("?", 1)[0].split("/")[-1]
+            with TemporaryDirectory(ignore_cleanup_errors=True) as tempdir:
+                temp_file_path = os.path.join(tempdir, temp_file)
 
-            download_from_url(result["url"], temp_file_path)
+                download_from_url(result["url"], temp_file_path)
 
-            # compare schema of API file download to destination_table
-            # throw if additional columns found in file download
-            # otherwise will log differences
-            schema_compare(temp_file_path, destination_table)
+                # compare schema of API file download to destination_table
+                # throw if additional columns found in file download
+                # otherwise will log differences
+                schema_compare(temp_file_path, destination_table)
 
-            # delete any records with dataset_id=NULL, as they should be a
-            # related to a previous processing error
-            drop_dataset_id_null(destination_table, db_manager)
+                # delete any records with dataset_id=NULL, as they should be a
+                # related to a previous processing error
+                drop_dataset_id_null(destination_table, db_manager)
 
-            copy_local_to_db(temp_file_path, destination_table)
+                copy_local_to_db(temp_file_path, destination_table)
+
             db_manager.vaccuum_analyze(destination_table)
 
-            delete_dataset_id = sa.delete(destination_table).where(
-                destination_table.dataset_id == result["dataset_id"]
-            )
+            delete_dataset_id = sa.delete(destination_table).where(destination_table.dataset_id == result["dataset_id"])
             delete_result = db_manager.execute(delete_dataset_id)
 
             # update dataset_id for all records just loaded into DB from
@@ -204,8 +187,4 @@ def run_api_copy(url: str, destination_table: Any) -> None:
             raise exception
 
         finally:
-            if os.path.exists(temp_file_path):
-                # clean up temp API file download
-                os.remove(temp_file_path)
-
             drop_dataset_id_null(destination_table, db_manager)

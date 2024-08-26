@@ -1,5 +1,5 @@
 import sqlalchemy as sa
-from dmap_import.schemas import SqlBase
+from cubic_loader.dmap.schemas import SqlBase
 
 
 class SaleTransaction(SqlBase):
@@ -26,9 +26,7 @@ class SaleTransaction(SqlBase):
     language_name = sa.Column(sa.String(), nullable=True)
     posting_day_holiday_flag = sa.Column(sa.BigInteger, nullable=True)
     settlement_day_holiday_flag = sa.Column(sa.BigInteger, nullable=True)
-    ready_for_settlement_day_holiday_flag = sa.Column(
-        sa.BigInteger, nullable=True
-    )
+    ready_for_settlement_day_holiday_flag = sa.Column(sa.BigInteger, nullable=True)
     operating_day_holiday_flag = sa.Column(sa.BigInteger, nullable=True)
     media_type_id = sa.Column(sa.BigInteger, nullable=True)
     media_type_name = sa.Column(sa.String(), nullable=True)

@@ -1,5 +1,5 @@
 import sqlalchemy as sa
-from dmap_import.schemas import SqlBase
+from cubic_loader.dmap.schemas import SqlBase
 
 
 class AggDailyFareprod(SqlBase):

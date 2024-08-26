@@ -5,6 +5,7 @@ Revises: fb033ef6de1b
 Create Date: 2024-07-11 12:34:27.185019
 
 """
+
 from typing import Sequence, Union
 
 from alembic import op
@@ -29,7 +30,5 @@ def downgrade() -> None:
         "use_transaction_longitudinal",
         sa.Column("reference", sa.String()),
     )
-    op.add_column(
-        "use_transaction_location", sa.Column("reference", sa.String())
-    )
+    op.add_column("use_transaction_location", sa.Column("reference", sa.String()))
     op.add_column("sale_transaction", sa.Column("reference", sa.String()))

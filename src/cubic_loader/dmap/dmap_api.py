@@ -6,9 +6,9 @@ import requests
 
 import sqlalchemy as sa
 
-from dmap_import.util_rds import DatabaseManager
-from dmap_import.schemas.api_metadata import ApiMetadata
-from dmap_import.util_logging import ProcessLogger
+from cubic_loader.utils.postgres import DatabaseManager
+from cubic_loader.dmap.schemas.api_metadata import ApiMetadata
+from cubic_loader.utils.logger import ProcessLogger
 
 
 class ApiResult(TypedDict):
@@ -56,7 +56,6 @@ def download_from_url(url: str, local_path: str) -> Optional[str]:
         url=url,
         local_path=local_path,
     )
-    download_log.log_start()
 
     max_retries = 3
     for retry_count in range(max_retries + 1):
@@ -124,7 +123,6 @@ def get_api_results(url: str, db_manager: DatabaseManager) -> List[ApiResult]:
         "get_api_results",
         url=url,
     )
-    api_results_log.log_start()
 
     last_update_query = sa.select(ApiMetadata.last_updated).where(
         ApiMetadata.url == url,
@@ -138,12 +136,8 @@ def get_api_results(url: str, db_manager: DatabaseManager) -> List[ApiResult]:
     params = {}
     if db_result:
         last_updated_dt: datetime.datetime = db_result[0]["last_updated"]
-        params["last_updated"] = (
-            last_updated_dt.date() - datetime.timedelta(days=1)
-        ).strftime("%Y-%m-%d")
-        api_results_log.add_metadata(
-            last_updated_dt=last_updated_dt.isoformat()
-        )
+        params["last_updated"] = (last_updated_dt.date() - datetime.timedelta(days=1)).strftime("%Y-%m-%d")
+        api_results_log.add_metadata(last_updated_dt=last_updated_dt.isoformat())
 
     apikey = apikey_from_environment(url)
 
@@ -158,9 +152,7 @@ def get_api_results(url: str, db_manager: DatabaseManager) -> List[ApiResult]:
     for retry_count in range(max_retries + 1):
         api_results_log.add_metadata(retry_count=retry_count)
         try:
-            response = requests.get(
-                url, headers=headers, params=params, timeout=15
-            )
+            response = requests.get(url, headers=headers, params=params, timeout=15)
             response.raise_for_status()
             response.close()
 
@@ -186,9 +178,7 @@ def get_api_results(url: str, db_manager: DatabaseManager) -> List[ApiResult]:
     # API Results appear to be sorted by `last_updated` by default, but this
     # sorting is required for proper updated of `last_updated` column
     # in ApiMetadata RDS table
-    api_results = sorted(
-        json_response["results"], key=lambda result: result["last_updated"]
-    )
+    api_results = sorted(json_response["results"], key=lambda result: result["last_updated"])
 
     api_results_log.add_metadata(original_result_count=len(api_results))
 
@@ -199,8 +189,7 @@ def get_api_results(url: str, db_manager: DatabaseManager) -> List[ApiResult]:
         api_results = [
             result
             for result in api_results
-            if result["last_updated"]
-            > last_updated_dt.strftime("%Y-%m-%dT%H:%M:%S.%f")
+            if result["last_updated"] > last_updated_dt.strftime("%Y-%m-%dT%H:%M:%S.%f")
         ]
 
     api_results_log.add_metadata(filter_result_count=len(api_results))

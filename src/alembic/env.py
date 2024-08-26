@@ -1,7 +1,7 @@
 from logging.config import fileConfig
 
-from dmap_import.util_rds import get_local_engine
-from dmap_import.schemas import SqlBase
+from cubic_loader.utils.postgres import get_local_engine
+from cubic_loader.dmap.schemas import SqlBase
 
 from alembic import context
 
@@ -61,9 +61,7 @@ def run_migrations_online() -> None:
     target_metadata = SqlBase.metadata
 
     with connectable.connect() as connection:
-        context.configure(
-            connection=connection, target_metadata=target_metadata
-        )
+        context.configure(connection=connection, target_metadata=target_metadata)
 
         with context.begin_transaction():
             context.run_migrations()

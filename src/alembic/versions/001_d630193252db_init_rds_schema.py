@@ -5,6 +5,7 @@ Revises:
 Create Date: 2023-11-02 08:52:21.963182
 
 """
+
 from typing import Sequence, Union
 
 from alembic import op
@@ -229,12 +230,8 @@ def upgrade() -> None:
         sa.Column("language_id", sa.BigInteger(), nullable=True),
         sa.Column("language_name", sa.String(), nullable=True),
         sa.Column("posting_day_holiday_flag", sa.BigInteger(), nullable=True),
-        sa.Column(
-            "settlement_day_holiday_flag", sa.BigInteger(), nullable=True
-        ),
-        sa.Column(
-            "ready_for_settlement_day_holiday_flag", sa.Integer(), nullable=True
-        ),
+        sa.Column("settlement_day_holiday_flag", sa.BigInteger(), nullable=True),
+        sa.Column("ready_for_settlement_day_holiday_flag", sa.Integer(), nullable=True),
         sa.Column("operating_day_holiday_flag", sa.BigInteger(), nullable=True),
         sa.Column("media_type_id", sa.BigInteger(), nullable=True),
         sa.Column("media_type_name", sa.String(), nullable=True),
@@ -407,12 +404,8 @@ def upgrade() -> None:
         sa.Column("customer_postal_code", sa.BigInteger(), nullable=True),
         sa.Column("language_id", sa.BigInteger(), nullable=True),
         sa.Column("language_name", sa.String(), nullable=True),
-        sa.Column(
-            "settlement_day_holiday_flag", sa.BigInteger(), nullable=True
-        ),
-        sa.Column(
-            "ready_for_settlement_day_holiday_flag", sa.Integer(), nullable=True
-        ),
+        sa.Column("settlement_day_holiday_flag", sa.BigInteger(), nullable=True),
+        sa.Column("ready_for_settlement_day_holiday_flag", sa.Integer(), nullable=True),
         sa.Column("posting_day_holiday_flag", sa.BigInteger(), nullable=True),
         sa.Column("operating_day_holiday_flag", sa.BigInteger(), nullable=True),
         sa.Column("media_type_id", sa.BigInteger(), nullable=True),
@@ -561,12 +554,8 @@ def upgrade() -> None:
         sa.Column("customer_postal_code", sa.BigInteger(), nullable=True),
         sa.Column("language_id", sa.BigInteger(), nullable=True),
         sa.Column("language_name", sa.String(), nullable=True),
-        sa.Column(
-            "settlement_day_holiday_flag", sa.BigInteger(), nullable=True
-        ),
-        sa.Column(
-            "ready_for_settlement_day_holiday_flag", sa.Integer(), nullable=True
-        ),
+        sa.Column("settlement_day_holiday_flag", sa.BigInteger(), nullable=True),
+        sa.Column("ready_for_settlement_day_holiday_flag", sa.Integer(), nullable=True),
         sa.Column("posting_day_holiday_flag", sa.BigInteger(), nullable=True),
         sa.Column("operating_day_holiday_flag", sa.BigInteger(), nullable=True),
         sa.Column("media_type_id", sa.BigInteger(), nullable=True),
