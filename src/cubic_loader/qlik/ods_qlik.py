@@ -32,6 +32,7 @@ from cubic_loader.qlik.utils import re_get_first
 from cubic_loader.qlik.utils import RE_SNAPSHOT_TS
 from cubic_loader.qlik.utils import RE_CDC_TS
 from cubic_loader.qlik.utils import TableStatus
+from cubic_loader.qlik.utils import threading_cpu_count
 from cubic_loader.utils.logger import ProcessLogger
 
 
@@ -280,7 +281,7 @@ class CubicODSQlik:
         error_files: List[str] = []
         new_column_set: Set[str] = set()
         work_files = [(wf, self.etl_status) for wf in get_cdc_dfms(self.etl_status, self.table)]
-        with ThreadPoolExecutor(max_workers=os.cpu_count()) as pool:
+        with ThreadPoolExecutor(max_workers=threading_cpu_count()) as pool:
             for result in pool.map(thread_load_cdc_file, work_files):
                 dfm_result, new_columns = result
                 if new_columns is None and dfm_result is not None:
@@ -303,15 +304,11 @@ class CubicODSQlik:
             work_files = [
                 (DFMDetails(path=path, ts=re_get_first(path, RE_CDC_TS)), self.etl_status) for path in error_files
             ]
-            with ThreadPoolExecutor(max_workers=os.cpu_count()) as pool:
+            with ThreadPoolExecutor(max_workers=threading_cpu_count()) as pool:
                 for result in pool.map(thread_load_cdc_file, work_files):
                     dfm_result, new_columns = result
                     if new_columns is None and dfm_result is not None:
                         current_cdc_ts = max(current_cdc_ts, dfm_result)
-
-        # Delete header__change_oper='B' as they are redundant
-        del_b_records = f"DELETE FROM {ODS_SCHEMA}.{self.db_history_table} WHERE header__change_oper = 'B';"
-        self.db.execute(del_b_records)
 
         self.db.vaccuum_analyze(f"{ODS_SCHEMA}.{self.db_history_table}")
 
@@ -325,21 +322,31 @@ class CubicODSQlik:
         logger = ProcessLogger("load_fact_table", table=self.db_fact_table)
         schema = self.etl_status.last_schema
 
-        table_columns = ",".join([col["name"] for col in schema])
-        keys = ",".join([col["name"] for col in schema if col["primaryKeyPos"] > 0])
-
         fact_table = f"{ODS_SCHEMA}.{self.db_fact_table}"
         history_table = f"{ODS_SCHEMA}.{self.db_history_table}"
 
+        table_columns = [col["name"] for col in schema]
+        table_column_str = ",".join(table_columns)
+        key_columns = [col["name"] for col in schema if col["primaryKeyPos"] > 0]
+        key_str = ",".join(key_columns)
+
+        first_vals = []
+        for column in ["header__change_oper"] + table_columns:
+            if column in key_columns:
+                continue
+            q = f"(array_remove(array_agg({column} ORDER BY header__timestamp DESC), NULL))[1] as {column}"
+            first_vals.append(q)
+
         fact_query = (
-            f"INSERT INTO {fact_table} ({table_columns}) "
-            f"SELECT {table_columns} FROM "
-            f"("
-            f"SELECT DISTINCT ON ({keys}) {table_columns},header__change_oper "
-            f"FROM {history_table} "
-            f"ORDER BY {keys},header__timestamp DESC "
-            f") t_load "
-            f"WHERE t_load.header__change_oper <> 'D'"
+            f"INSERT INTO {fact_table} ({table_column_str})"
+            f" SELECT {table_column_str} FROM"
+            f" ("
+            f" SELECT {key_str}"
+            f" , {','.join(first_vals)}"
+            f" FROM {history_table}"
+            f" GROUP BY {key_str}"
+            f" ) t_load"
+            f" WHERE t_load.header__change_oper <> 'D'"
             ";"
         )
 
