@@ -83,7 +83,7 @@ def create_tables_from_schema(schema: List[DFMSchemaFields], table_name: str) ->
         ("header__change_seq", "CHANGE_SEQ"),
     )
     header_cols: List[str] = [f"{col[0]} {qlik_type_to_pg(col[1], 0)}" for col in header_fields]
-    history_keys = dfm_keys + [ix[0] for ix in header_fields]
+    history_keys = ["header__timestamp"] + dfm_keys + ["header__change_oper", "header__change_seq"]
     history_columns = header_cols + dfm_columns + [f"PRIMARY KEY ({','.join(history_keys)})"]
     ops.append(
         (
@@ -97,7 +97,7 @@ def create_tables_from_schema(schema: List[DFMSchemaFields], table_name: str) ->
     ops.append(f"CREATE TABLE IF NOT EXISTS {ODS_SCHEMA}.{table_name}_load ({",".join(load_columns)});")
 
     # Create INDEX on HISTORY Table that will be used for creating FACT table
-    index_columns = ["header__change_oper"] + dfm_keys + ["header__change_seq DESC"]
+    index_columns = dfm_keys + ["header__change_oper", "header__change_seq DESC"]
     ops.append(
         f"CREATE INDEX IF NOT EXISTS {table_name}_to_fact_idx on {ODS_SCHEMA}.{table_name}_history "
         f"({','.join(index_columns)});"
