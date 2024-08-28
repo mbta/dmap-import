@@ -440,14 +440,13 @@ def remote_csv_gz_copy(obj_path: str, destination_table: str, column_str: Option
         f"{copy_command}",
     ]
 
-    run_psql_subprocess(psql, copy_log)
+    run_psql_subprocess(psql, copy_log, max_retries=0)
 
 
-def run_psql_subprocess(psql_cmd: List[str], logger: ProcessLogger) -> None:
+def run_psql_subprocess(psql_cmd: List[str], logger: ProcessLogger, max_retries: int = 2) -> None:
     """
     run psql command with retry logic
     """
-    max_retries = 2
     logger.add_metadata(max_retries=max_retries)
 
     for retry_attempts in range(max_retries + 1):

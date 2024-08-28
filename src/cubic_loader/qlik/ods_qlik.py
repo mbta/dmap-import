@@ -257,7 +257,7 @@ class CubicODSQlik:
             f"UPDATE {ODS_SCHEMA}.{self.db_load_table} "
             f"SET header__timestamp=to_timestamp('{self.last_s3_snapshot_dfm.ts}','YYYYMMDDTHHMISSZ') "
             f", header__change_oper='L' "
-            f", header__change_seq='SNAPSHOT_LOAD'"
+            f", header__change_seq=rpad(regexp_replace('{self.last_s3_snapshot_dfm.ts}','\\D','','g'),35,'0')::numeric "
             f"WHERE header__timestamp IS NULL;"
         )
         self.db.execute(load_update)
@@ -334,7 +334,7 @@ class CubicODSQlik:
         for column in ["header__change_oper"] + table_columns:
             if column in key_columns:
                 continue
-            q = f"(array_remove(array_agg({column} ORDER BY header__timestamp DESC), NULL))[1] as {column}"
+            q = f"(array_remove(array_agg({column} ORDER BY header__change_seq DESC), NULL))[1] as {column}"
             first_vals.append(q)
 
         fact_query = (
@@ -344,6 +344,7 @@ class CubicODSQlik:
             f" SELECT {key_str}"
             f" , {','.join(first_vals)}"
             f" FROM {history_table}"
+            f" WHERE header__change_oper <> 'B'"
             f" GROUP BY {key_str}"
             f" ) t_load"
             f" WHERE t_load.header__change_oper <> 'D'"
