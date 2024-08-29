@@ -5,6 +5,7 @@ Revises: 214f62b149e9
 Create Date: 2024-07-30 15:32:28.457690
 
 """
+
 from typing import Sequence, Union
 
 from alembic import op
@@ -19,19 +20,13 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    op.add_column(
-        "use_transaction_location", sa.Column("multi_ride_id", sa.BigInteger())
-    )
-    op.add_column(
-        "use_transaction_location", sa.Column("token_id", sa.BigInteger())
-    )
+    op.add_column("use_transaction_location", sa.Column("multi_ride_id", sa.BigInteger()))
+    op.add_column("use_transaction_location", sa.Column("token_id", sa.BigInteger()))
     op.add_column(
         "use_transaction_longitudinal",
         sa.Column("multi_ride_id", sa.BigInteger()),
     )
-    op.add_column(
-        "use_transaction_longitudinal", sa.Column("token_id", sa.BigInteger())
-    )
+    op.add_column("use_transaction_longitudinal", sa.Column("token_id", sa.BigInteger()))
 
 
 def downgrade() -> None:

@@ -5,6 +5,7 @@ Revises: d630193252db
 Create Date: 2024-06-01 22:10:22.189820
 
 """
+
 from typing import Sequence, Union
 
 from alembic import op
@@ -19,12 +20,8 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    op.add_column(
-        "use_transaction_longitudinal", sa.Column("reference", sa.String())
-    )
-    op.add_column(
-        "use_transaction_location", sa.Column("reference", sa.String())
-    )
+    op.add_column("use_transaction_longitudinal", sa.Column("reference", sa.String()))
+    op.add_column("use_transaction_location", sa.Column("reference", sa.String()))
     op.add_column("sale_transaction", sa.Column("reference", sa.String()))
 
 
