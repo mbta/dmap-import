@@ -50,7 +50,6 @@ def start_qlik_load() -> None:
     os.environ["SERVICE_NAME"] = "qlik_loader"
 
     db = DatabaseManager()
-    db.execute(f"CREATE SCHEMA IF NOT EXISTS {ODS_SCHEMA};")
 
     for cubic_table in CUBIC_ODS_TABLES:
         qlik_table = CubicODSQlik(cubic_table, db)
