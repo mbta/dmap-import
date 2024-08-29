@@ -5,7 +5,6 @@ from cubic_loader.utils.logger import ProcessLogger
 from cubic_loader.utils.postgres import alembic_upgrade_to_head
 from cubic_loader.utils.postgres import DatabaseManager
 from cubic_loader.utils.runtime import validate_environment
-from cubic_loader.utils.remote_locations import ODS_SCHEMA
 
 
 from cubic_loader.dmap.api_copy_job import run_api_copy
