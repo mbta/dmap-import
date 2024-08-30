@@ -38,7 +38,6 @@ from cubic_loader.utils.logger import ProcessLogger
 
 DFM_COLUMN_SCHEMA = pl.Schema(
     {
-        "ordinal": pl.Int64(),
         "name": pl.String(),
         "type": pl.String(),
         "length": pl.Int64(),
