@@ -319,14 +319,13 @@ class CubicODSQlik:
     def rds_fact_table_load(self) -> None:
         """Load FACT Table records from History Table"""
         logger = ProcessLogger("load_fact_table", table=self.db_fact_table)
-        schema = self.etl_status.last_schema
 
         fact_table = f"{ODS_SCHEMA}.{self.db_fact_table}"
         history_table = f"{ODS_SCHEMA}.{self.db_history_table}"
 
-        table_columns = [col["name"] for col in schema]
+        table_columns = [col["name"] for col in self.etl_status.last_schema]
         table_column_str = ",".join(table_columns)
-        key_columns = [col["name"] for col in schema if col["primaryKeyPos"] > 0]
+        key_columns = [col["name"] for col in self.etl_status.last_schema if col["primaryKeyPos"] > 0]
         key_str = ",".join(key_columns)
 
         first_vals = []
@@ -336,7 +335,29 @@ class CubicODSQlik:
             q = f"(array_remove(array_agg({column} ORDER BY header__change_seq DESC), NULL))[1] as {column}"
             first_vals.append(q)
 
-        fact_query = (
+        delete_str = " AND ".join(
+            [f"{fact_table}.{col}=to_delete.{col} AND NOT to_delete.{col} IS NULL" for col in key_columns]
+        )
+        fact_delete_query = (
+            f"WITH to_delete AS"
+            f" ("
+            f"   SELECT {key_str} FROM"
+            f"   ("
+            f"     SELECT {key_str}"
+            f"     , (array_remove(array_agg(header__change_oper ORDER BY header__change_seq DESC), NULL))[1] as header__change_oper"
+            f"     FROM {history_table}"
+            f"     WHERE header__change_oper <> 'B'"
+            f"     GROUP BY {key_str}"
+            f"   ) t_load"
+            f"   WHERE t_load.header__change_oper = 'D'"
+            f" )"
+            f" DELETE FROM {fact_table}"
+            f" USING to_delete"
+            f" WHERE {delete_str}"
+        )
+
+        on_conflict_str = ",".join([f"{col}=EXCLUDED.{col}" for col in table_columns])
+        fact_insert_query = (
             f"INSERT INTO {fact_table} ({table_column_str})"
             f" SELECT {table_column_str} FROM"
             f" ("
@@ -347,11 +368,13 @@ class CubicODSQlik:
             f" GROUP BY {key_str}"
             f" ) t_load"
             f" WHERE t_load.header__change_oper <> 'D'"
+            f" ON CONFLICT ({key_str}) DO UPDATE SET "
+            f" {on_conflict_str}"
             ";"
         )
 
-        self.db.truncate_table(fact_table)
-        self.db.execute(fact_query)
+        self.db.execute(fact_delete_query)
+        self.db.execute(fact_insert_query)
 
         self.db.vaccuum_analyze(fact_table)
 
