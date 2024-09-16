@@ -14,7 +14,6 @@ CUBIC_ODS_TABLES = [
     "EDW.DEVICE_DIMENSION",
     "EDW.USE_TRANSACTION",
     # comp b
-    # "EDW.PAYMENT_SUMMARY", Table has NULL values in PrimaryKey columns
     "EDW.TXN_CHANNEL_MAP",
     "EDW.CCH_AFC_TRANSACTION",
     "EDW.PATRON_TRIP",
