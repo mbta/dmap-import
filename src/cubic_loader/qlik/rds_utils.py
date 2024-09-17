@@ -143,7 +143,7 @@ def drop_table(table_name: str) -> str:
     """
     DROP table from RDS
     """
-    return f"DROP TABLE IF EXISTS {ODS_SCHEMA}.{table_name};"
+    return f"DROP TABLE IF EXISTS {ODS_SCHEMA}.{table_name} CASCADE;"
 
 
 def add_columns_to_table(new_columns: List[DFMSchemaFields], fact_table: str) -> str:
