@@ -84,13 +84,12 @@ def status_schema_to_df(status: TableStatus) -> pl.DataFrame:
 
 
 def get_snapshot_dfms(table: str) -> List[DFMDetails]:
-    """find all available snapshot dfm files for a qlik table from Archive and Error buckets"""
+    """find all available snapshot dfm files for a qlik table from Archive bucket"""
     prefix = os.path.join(QLIK, f"{table}/")
     archive_dfms = s3_list_objects(S3_ARCHIVE, prefix, in_filter=".dfm")
-    error_dfms = s3_list_objects(S3_ERROR, prefix, in_filter=".dfm")
 
     found_snapshots = []
-    for dfm in archive_dfms + error_dfms:
+    for dfm in archive_dfms:
         found_snapshots.append(DFMDetails(path=dfm, ts=re_get_first(dfm, RE_SNAPSHOT_TS)))
 
     assert len(found_snapshots) > 0
