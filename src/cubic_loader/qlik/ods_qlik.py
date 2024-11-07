@@ -21,6 +21,7 @@ from cubic_loader.utils.aws import s3_upload_file
 from cubic_loader.utils.aws import s3_delete_object
 from cubic_loader.utils.aws import s3_download_object
 from cubic_loader.utils.remote_locations import S3_ARCHIVE
+from cubic_loader.utils.remote_locations import S3_ERROR
 from cubic_loader.utils.remote_locations import QLIK
 from cubic_loader.utils.remote_locations import ODS_STATUS
 from cubic_loader.utils.remote_locations import ODS_SCHEMA
@@ -40,6 +41,7 @@ from cubic_loader.qlik.utils import re_get_first
 from cubic_loader.qlik.utils import RE_SNAPSHOT_TS
 from cubic_loader.qlik.utils import CDC_COLUMNS
 from cubic_loader.qlik.utils import MERGED_FNAME
+from cubic_loader.qlik.utils import RE_CDC_TS
 from cubic_loader.qlik.utils import TableStatus
 from cubic_loader.qlik.utils import threading_cpu_count
 from cubic_loader.qlik.utils import merge_cdc_csv_gz_files
@@ -67,7 +69,7 @@ def get_snapshot_dfms(table: str) -> List[DFMDetails]:
 
 def get_cdc_gz_csvs(etl_status: TableStatus, table: str) -> List[str]:
     """
-    find all available CDC csv.gz files for a Snapshot from Archive bucket
+    find all available CDC csv.gz files for a Snapshot from Archive and Error buckets
     :param etl_status: status of ETL operation
     :param table: CUBIC Table Name
 
@@ -76,7 +78,14 @@ def get_cdc_gz_csvs(etl_status: TableStatus, table: str) -> List[str]:
     table_prefix = os.path.join(QLIK, f"{table}__ct/")
     snapshot_prefix = f"{table_prefix}snapshot={etl_status.current_snapshot_ts}/"
 
-    return s3_list_cdc_gz_objects(S3_ARCHIVE, snapshot_prefix, min_ts=etl_status.last_cdc_ts)
+    cdc_csvs = s3_list_cdc_gz_objects(S3_ARCHIVE, snapshot_prefix, min_ts=etl_status.last_cdc_ts)
+
+    # filter error files from table folder
+    for csv_file in s3_list_cdc_gz_objects(S3_ERROR, table, min_ts=etl_status.last_cdc_ts):
+        if re_get_first(csv_file, RE_SNAPSHOT_TS) > etl_status.current_snapshot_ts:
+            cdc_csvs.append(csv_file)
+
+    return sorted(cdc_csvs, key=lambda l: re_get_first(l, RE_CDC_TS))
 
 
 def thread_save_csv_file(args: Tuple[str, str]) -> None:
