@@ -241,7 +241,7 @@ class DatabaseManager:
 
     def execute(self, statement: PreAnyQuery) -> CursorResult:
         """
-                execute SQL Statement with no return data
+        execute SQL Statement with no return data
 
         :param statement: SQL Statement to execute
         """
@@ -397,6 +397,9 @@ def header_from_csv_gz(obj_path: str) -> str:
             check=True,
         )
         header_str = ps.stdout
+    elif obj_path.lower().endswith(".csv"):
+        with open(obj_path, "rt", encoding="utf8") as csv_file:
+            header_str = csv_file.readline()
     else:
         with gzip.open(obj_path, "rt") as gzip_file:
             header_str = gzip_file.readline()

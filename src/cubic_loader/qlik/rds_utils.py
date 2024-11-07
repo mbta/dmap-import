@@ -4,11 +4,9 @@ from datetime import date
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
 
-from cubic_loader.utils.remote_locations import ODS_SCHEMA
 from cubic_loader.qlik.utils import DFMSchemaFields
 
 
-# pylint: disable=too-many-branches
 def qlik_type_to_pg(qlik_type: str, scale: int) -> str:
     """
     convert qlik datatype from DFM file to postgres type
@@ -16,15 +14,25 @@ def qlik_type_to_pg(qlik_type: str, scale: int) -> str:
     :param qlik_type: QLIK data type from DFM file
     :param scale: max number of digits to right of decimal
 
-    :return: postgres type
+    :return: postgres type as str
     """
-    return_type = "VARCHAR"
+    exact_type_matches = {
+        "CHANGE_OPER": "CHAR(1)",
+        "CHANGE_SEQ": "NUMERIC(35,0)",
+        "REAL4": "REAL",
+        "REAL8": "DOUBLE PRECISION",
+        "BOOLEAN": "BOOLEAN",
+        "DATE": "DATE",
+        "TIME": "TIME WITHOUT TIME ZONE",
+        "DATETIME": "TIMESTAMP WITHOUT TIME ZONE",
+    }
+    # check for exacty type matching
+    return_type = exact_type_matches.get(qlik_type, None)
+    if return_type is not None:
+        return return_type
 
-    if qlik_type == "CHANGE_OPER":
-        return_type = "CHAR(1)"
-    elif qlik_type == "CHANGE_SEQ":
-        return_type = "NUMERIC(35,0)"
-    elif "INT1" in qlik_type:
+    # continue with alternate type matching
+    if "INT1" in qlik_type:
         return_type = "SMALLINT"
     elif "INT2" in qlik_type:
         return_type = "SMALLINT"
@@ -32,34 +40,26 @@ def qlik_type_to_pg(qlik_type: str, scale: int) -> str:
         return_type = "INTEGER"
     elif "INT4" in qlik_type:
         return_type = "BIGINT"
-    elif qlik_type == "REAL4":
-        return_type = "REAL"
-    elif qlik_type == "REAL8":
-        return_type = "DOUBLE PRECISION"
     elif "NUMERIC" in qlik_type and scale == 0:
         return_type = "BIGINT"
     elif "NUMERIC" in qlik_type:
         return_type = "DOUBLE PRECISION"
-    elif qlik_type == "BOOLEAN":
-        return_type = qlik_type
-    elif qlik_type == "DATE":
-        return_type = qlik_type
-    elif qlik_type == "TIME":
-        return_type = "TIME WITHOUT TIME ZONE"
-    elif qlik_type == "DATETIME":
-        return_type = "TIMESTAMP WITHOUT TIME ZONE"
+    else:
+        return_type = "VARCHAR"
 
     return return_type
 
 
-# pylint: enable=too-many-branches
-
-
-def create_tables_from_schema(schema: List[DFMSchemaFields], table_name: str) -> str:
+def create_tables_from_schema(schema: List[DFMSchemaFields], schema_and_table: str) -> str:
     """
     produce CREATE table string for FACT and HISTORY tables from dfm snapshot path
 
     also CREATE INDEX for history table that will be used for inserting into FACT table.
+
+    :param schema: Schema List from DFM file
+    :schema_and_table: Schema and Table as 'schema.table'
+
+    :return: SQL Statements to CREATE FACT and HISTORY tables and any associated indexes
     """
     ops: List[str] = []
     dfm_columns: List[str] = []
@@ -73,7 +73,7 @@ def create_tables_from_schema(schema: List[DFMSchemaFields], table_name: str) ->
 
     # Create FACT Table
     fact_columns = dfm_columns + [f"PRIMARY KEY ({','.join(dfm_keys)})"]
-    ops.append(f"CREATE TABLE IF NOT EXISTS {ODS_SCHEMA}.{table_name} ({",".join(fact_columns)});")
+    ops.append(f"CREATE TABLE IF NOT EXISTS {schema_and_table} ({",".join(fact_columns)});")
 
     # Create HISTORY Table
     # partitioned by header__timestamp
@@ -87,33 +87,33 @@ def create_tables_from_schema(schema: List[DFMSchemaFields], table_name: str) ->
     history_columns = header_cols + dfm_columns + [f"PRIMARY KEY ({','.join(history_keys)})"]
     ops.append(
         (
-            f"CREATE TABLE IF NOT EXISTS {ODS_SCHEMA}.{table_name}_history ({",".join(history_columns)}) "
+            f"CREATE TABLE IF NOT EXISTS {schema_and_table}_history ({",".join(history_columns)}) "
             " PARTITION BY RANGE (header__timestamp);"
         )
     )
 
     # Create load Table for loading snapshot data
     load_columns = header_cols + dfm_columns
-    ops.append(f"CREATE TABLE IF NOT EXISTS {ODS_SCHEMA}.{table_name}_load ({",".join(load_columns)});")
+    ops.append(f"CREATE TABLE IF NOT EXISTS {schema_and_table}_load ({",".join(load_columns)});")
 
     # Create INDEX on HISTORY Table that will be used for creating FACT table
     index_columns = dfm_keys + ["header__change_oper", "header__change_seq DESC"]
     ops.append(
-        f"CREATE INDEX IF NOT EXISTS {table_name}_to_fact_idx on {ODS_SCHEMA}.{table_name}_history "
+        f"CREATE INDEX IF NOT EXISTS {schema_and_table.replace('.','_')}_to_fact_idx on {schema_and_table}_history "
         f"({','.join(index_columns)});"
     )
 
     return " ".join(ops)
 
 
-def create_history_table_partitions(table: str, start_ts: Optional[str] = None) -> str:
+def create_history_table_partitions(schema_and_table: str, start_ts: Optional[str] = None) -> str:
     """
     produce CREATE partition table strings for history table
 
     if `start_ts` IS NOT provided, produce CREATE statements for next 3 months from today
     if `start_ts` IS provided, produce CREATE statements for month of `start_ts` to 3 months from today
 
-    :param table: name of HISTORY table to create statements for
+    :param schema_and_table: name and schema of HISTORY table as 'schema.table'
     :param start_ts: date timestamp as string starting with YYYYMMDD
 
     :return: all partition CREATE statments as single string
@@ -128,9 +128,9 @@ def create_history_table_partitions(table: str, start_ts: Optional[str] = None) 
 
     part_tables: List[str] = []
     while part_date < part_end:
-        part_table = f"{table}_y{part_date.year}m{part_date.month}"
+        part_table = f"{schema_and_table}_y{part_date.year}m{part_date.month}"
         create_part = (
-            f"CREATE TABLE IF NOT EXISTS {ODS_SCHEMA}.{part_table} PARTITION OF {ODS_SCHEMA}.{table} "
+            f"CREATE TABLE IF NOT EXISTS {part_table} PARTITION OF {schema_and_table} "
             f"FOR VALUES FROM ('{part_date}') TO ('{part_date + relativedelta(months=1)}');"
         )
         part_tables.append(create_part)
@@ -139,34 +139,75 @@ def create_history_table_partitions(table: str, start_ts: Optional[str] = None) 
     return " ".join(part_tables)
 
 
-def drop_table(table_name: str) -> str:
+def drop_table(schema_and_table: str) -> str:
     """
     DROP table from RDS
+
+    :param schema_and_table: name and schema of table to DROP as 'schema.table'
+
+    :return: DROP TABLE command
     """
-    return f"DROP TABLE IF EXISTS {ODS_SCHEMA}.{table_name} CASCADE;"
+    return f"DROP TABLE IF EXISTS {schema_and_table} CASCADE;"
 
 
-def add_columns_to_table(new_columns: List[DFMSchemaFields], fact_table: str) -> str:
+def add_columns_to_table(new_columns: List[DFMSchemaFields], schema_and_table: str) -> str:
     """
-    produce ALTER table string to add columns to FACT, HISTORY and LOAD tables
+    produce ALTER table string to add columns to FACT and HISTORY tables
 
     :param new_columns: List of dictionaries containing new column name and QLIK type
-    :param fact_table: fact table for new columns
+    :param schema_and_table: name and schema of table as 'schema.table'
 
     :return: string to create all new columns
     """
     tables = (
-        fact_table,
-        f"{fact_table}_history",
+        schema_and_table,
+        f"{schema_and_table}_history",
+        f"{schema_and_table}_load",
     )
     alter_strings: List[str] = []
     for column in new_columns:
         for table in tables:
             alter_strings.append(
-                (
-                    f"ALTER TABLE {ODS_SCHEMA}.{table} ADD "
-                    f"{column['name']} {qlik_type_to_pg(column['type'], column['scale'])};"
-                )
+                f"ALTER TABLE {table} ADD {column['name']} {qlik_type_to_pg(column['type'], column['scale'])};"
             )
 
     return " ".join(alter_strings)
+
+
+def bulk_delete_from_temp(schema_and_table: str, key_columns: List[str]) -> str:
+    """
+    create query to DELETE records from table based on key columns
+    """
+    tmp_table = f"{schema_and_table}_load"
+    where_clause = " AND ".join([f"{schema_and_table}.{t}={tmp_table}.{t}" for t in key_columns])
+    delete_query = f"DELETE FROM {schema_and_table} " f"USING {tmp_table} " f"WHERE {where_clause};"
+
+    return delete_query
+
+
+def bulk_update_from_temp(schema_and_table: str, update_column: str, key_columns: List[str]) -> str:
+    """
+    create query to UPDATE records from table based on key columns
+    """
+    tmp_table = f"{schema_and_table}_load"
+    where_clause = " AND ".join([f"{schema_and_table}.{t}={tmp_table}.{t}" for t in key_columns])
+    update_query = (
+        f"UPDATE {schema_and_table} SET {update_column}={tmp_table}.{update_column} "
+        f"FROM {tmp_table} WHERE {where_clause};"
+    )
+
+    return update_query
+
+
+def bulk_insert_from_temp(schema_and_table: str, columns: List[str]) -> str:
+    """
+    create query to INSERT records from temp table to fact table
+    """
+    tmp_table = f"{schema_and_table}_load"
+    columns_str = ",".join(columns)
+    insert_query = (
+        f"INSERT INTO {schema_and_table} ({columns_str}) "
+        f"SELECT {columns_str} FROM {tmp_table} "
+        f"ON CONFLICT DO NOTHING;"
+    )
+    return insert_query
