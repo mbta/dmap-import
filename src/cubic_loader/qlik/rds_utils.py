@@ -199,15 +199,14 @@ def bulk_update_from_temp(schema_and_table: str, update_column: str, key_columns
     return update_query
 
 
-def bulk_insert_from_temp(schema_and_table: str, columns: List[str]) -> str:
+def bulk_insert_from_temp(insert_table_and_schema: str, temp_table_and_schema: str, columns: List[str]) -> str:
     """
     create query to INSERT records from temp table to fact table
     """
-    tmp_table = f"{schema_and_table}_load"
     columns_str = ",".join(columns)
     insert_query = (
-        f"INSERT INTO {schema_and_table} ({columns_str}) "
-        f"SELECT {columns_str} FROM {tmp_table} "
+        f"INSERT INTO {insert_table_and_schema} ({columns_str}) "
+        f"SELECT {columns_str} FROM {temp_table_and_schema} "
         f"ON CONFLICT DO NOTHING;"
     )
     return insert_query

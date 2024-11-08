@@ -332,7 +332,7 @@ class CubicODSQlik:
         if insert_df.shape[0] == 0:
             return
 
-        insert_q = bulk_insert_from_temp(self.db_fact_table, insert_df.columns)
+        insert_q = bulk_insert_from_temp(self.db_fact_table, tmp_table, insert_df.columns)
         with tempfile.TemporaryDirectory() as tmp_dir:
             insert_path = os.path.join(tmp_dir, "insert.csv")
             insert_df.write_csv(insert_path, quote_style="necessary")
@@ -358,16 +358,17 @@ class CubicODSQlik:
         try:
             dfm_object = os.listdir(load_folder)[0].replace(".csv.gz", ".dfm").replace("|", "/")
             merge_csv = os.path.join(load_folder, MERGED_FNAME)
+            key_columns = [col["name"].lower() for col in self.etl_status.last_schema if col["primaryKeyPos"] > 0]
+            load_table = f"{self.db_fact_table}_load"
 
             cdc_ts = merge_cdc_csv_gz_files(load_folder)
             self.cdc_verify_schema(dfm_object)
-
-            # Load records into _history table
-            remote_csv_gz_copy(merge_csv, self.db_history_table)
-
             cdc_df = dataframe_from_merged_csv(merge_csv, dfm_object)
 
-            key_columns = [col["name"].lower() for col in self.etl_status.last_schema if col["primaryKeyPos"] > 0]
+            # Load records into _history table
+            self.db.truncate_table(load_table)
+            remote_csv_gz_copy(merge_csv, load_table)
+            self.db.execute(bulk_insert_from_temp(self.db_history_table, load_table, cdc_df.columns))
 
             self.cdc_insert(cdc_df)
 
