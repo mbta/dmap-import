@@ -81,7 +81,7 @@ def get_cdc_gz_csvs(etl_status: TableStatus, table: str) -> List[str]:
     cdc_csvs = s3_list_cdc_gz_objects(S3_ARCHIVE, snapshot_prefix, min_ts=etl_status.last_cdc_ts)
 
     # filter error files from table folder
-    for csv_file in s3_list_cdc_gz_objects(S3_ERROR, table, min_ts=etl_status.last_cdc_ts):
+    for csv_file in s3_list_cdc_gz_objects(S3_ERROR, table_prefix, min_ts=etl_status.last_cdc_ts):
         if re_get_first(csv_file, RE_SNAPSHOT_TS) > etl_status.current_snapshot_ts:
             cdc_csvs.append(csv_file)
 
