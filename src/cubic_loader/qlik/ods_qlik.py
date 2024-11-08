@@ -81,7 +81,7 @@ def get_cdc_gz_csvs(etl_status: TableStatus, table: str) -> List[str]:
     cdc_csvs = s3_list_cdc_gz_objects(S3_ARCHIVE, snapshot_prefix, min_ts=etl_status.last_cdc_ts)
 
     # filter error files from table folder
-    for csv_file in s3_list_cdc_gz_objects(S3_ERROR, table, min_ts=etl_status.last_cdc_ts):
+    for csv_file in s3_list_cdc_gz_objects(S3_ERROR, table_prefix, min_ts=etl_status.last_cdc_ts):
         if re_get_first(csv_file, RE_SNAPSHOT_TS) > etl_status.current_snapshot_ts:
             cdc_csvs.append(csv_file)
 
@@ -332,7 +332,7 @@ class CubicODSQlik:
         if insert_df.shape[0] == 0:
             return
 
-        insert_q = bulk_insert_from_temp(self.db_fact_table, insert_df.columns)
+        insert_q = bulk_insert_from_temp(self.db_fact_table, tmp_table, insert_df.columns)
         with tempfile.TemporaryDirectory() as tmp_dir:
             insert_path = os.path.join(tmp_dir, "insert.csv")
             insert_df.write_csv(insert_path, quote_style="necessary")
@@ -358,16 +358,17 @@ class CubicODSQlik:
         try:
             dfm_object = os.listdir(load_folder)[0].replace(".csv.gz", ".dfm").replace("|", "/")
             merge_csv = os.path.join(load_folder, MERGED_FNAME)
+            key_columns = [col["name"].lower() for col in self.etl_status.last_schema if col["primaryKeyPos"] > 0]
+            load_table = f"{self.db_fact_table}_load"
 
             cdc_ts = merge_cdc_csv_gz_files(load_folder)
             self.cdc_verify_schema(dfm_object)
-
-            # Load records into _history table
-            remote_csv_gz_copy(merge_csv, self.db_history_table)
-
             cdc_df = dataframe_from_merged_csv(merge_csv, dfm_object)
 
-            key_columns = [col["name"].lower() for col in self.etl_status.last_schema if col["primaryKeyPos"] > 0]
+            # Load records into _history table
+            self.db.truncate_table(load_table)
+            remote_csv_gz_copy(merge_csv, load_table)
+            self.db.execute(bulk_insert_from_temp(self.db_history_table, load_table, cdc_df.columns))
 
             self.cdc_insert(cdc_df)
 
