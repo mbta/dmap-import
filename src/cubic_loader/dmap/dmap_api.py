@@ -41,15 +41,15 @@ def apikey_from_environment(url: str) -> Optional[str]:
     return default
 
 
-def download_from_url(url: str, local_path: str) -> Optional[str]:
+def download_from_url(url: str, local_path: str) -> bool:
     """
     Download file from url to local_path.
-    will throw for HTTP error
+    will throw for HTTP error (Except Auth Error 403)
 
     :param url: CUBIC API URL string of file
     :param local_path: local file path to save downloaded file to
 
-    :return local file path of successfully downloaded file
+    :return: True if download success, False if Authentication Error
     """
     download_log = ProcessLogger(
         "download_from_url",
@@ -73,6 +73,10 @@ def download_from_url(url: str, local_path: str) -> Optional[str]:
             break
 
         except Exception as _:
+            if response.status_code == 403:
+                # handle Authentication Error
+                download_log.log_complete(status_code=response.status_code)
+                return False
             if retry_count < max_retries:
                 # wait and try again
                 time.sleep(15)
@@ -90,7 +94,7 @@ def download_from_url(url: str, local_path: str) -> Optional[str]:
     download_log.add_metadata(file_size_mb=f"{file_size_mb:.4f}")
     download_log.log_complete()
 
-    return local_path
+    return True
 
 
 def get_api_results(url: str, db_manager: DatabaseManager) -> List[ApiResult]:
