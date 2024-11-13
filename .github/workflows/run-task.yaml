@@ -1,0 +1,27 @@
+name: Run Task
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Environment
+        type: choice
+        options:
+          - staging
+          - prod
+
+jobs:
+  run_task:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Checkout Branch
+        uses: actions/checkout@v3
+      - name: Run Task Action
+        uses: mbta/actions/ecs-run-task@v2
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          cluster: 'dmap-import'
+          service: dmap-import-${{ inputs.environment }}
