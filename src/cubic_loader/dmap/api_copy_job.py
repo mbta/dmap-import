@@ -194,10 +194,17 @@ def run_api_copy(url: str, destination_table: Any) -> None:
 
             update_api_metadata_table(url, result, db_manager)
 
-            api_result_log.log_complete(
+            api_result_log.add_metadata(
                 db_records_deleted=delete_result.rowcount,
                 db_records_added=update_result.rowcount,
             )
+
+            if update_result.rowcount > 0:
+                api_result_log.log_complete()
+            else:
+                api_result_log.log_failure(
+                    exception=AssertionError(f"dataset_id: {result["dataset_id"]} contains no records.")
+                )
 
         except Exception as exception:
             api_result_log.log_failure(exception)
