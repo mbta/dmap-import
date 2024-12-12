@@ -72,9 +72,12 @@ def create_tables_from_schema(schema: List[DFMSchemaFields], schema_and_table: s
     assert len(dfm_keys) > 0
 
     # Create FACT Table
+    # FACT table is created without a primary key
+    # Tables coming from CUBIC ODS system are Oracle based which allows NULL values in Primary Key columns
+    # Postgres does not allow NULL in Primary Key columns, instead a standard INDEX on the Key columns is created
     ops.append(f"CREATE TABLE IF NOT EXISTS {schema_and_table} ({",".join(dfm_columns)});")
 
-    # FACT Table Index
+    # FACT Table Index on Primary Key columns
     ops.append(
         f"CREATE INDEX IF NOT EXISTS {schema_and_table.replace('.','_')}_fact_pk_idx on {schema_and_table} "
         f"({','.join(dfm_keys)});"
