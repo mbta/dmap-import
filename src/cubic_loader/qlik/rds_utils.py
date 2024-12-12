@@ -72,8 +72,16 @@ def create_tables_from_schema(schema: List[DFMSchemaFields], schema_and_table: s
     assert len(dfm_keys) > 0
 
     # Create FACT Table
-    fact_columns = dfm_columns + [f"PRIMARY KEY ({','.join(dfm_keys)})"]
-    ops.append(f"CREATE TABLE IF NOT EXISTS {schema_and_table} ({",".join(fact_columns)});")
+    # FACT table is created without a primary key
+    # Tables coming from CUBIC ODS system are Oracle based which allows NULL values in Primary Key columns
+    # Postgres does not allow NULL in Primary Key columns, instead a standard INDEX on the Key columns is created
+    ops.append(f"CREATE TABLE IF NOT EXISTS {schema_and_table} ({",".join(dfm_columns)});")
+
+    # FACT Table Index on Primary Key columns
+    ops.append(
+        f"CREATE INDEX IF NOT EXISTS {schema_and_table.replace('.','_')}_fact_pk_idx on {schema_and_table} "
+        f"({','.join(dfm_keys)});"
+    )
 
     # Create HISTORY Table
     # partitioned by header__timestamp
@@ -83,8 +91,7 @@ def create_tables_from_schema(schema: List[DFMSchemaFields], schema_and_table: s
         ("header__change_seq", "CHANGE_SEQ"),
     )
     header_cols: List[str] = [f"{col[0]} {qlik_type_to_pg(col[1], 0)}" for col in header_fields]
-    history_keys = ["header__timestamp"] + dfm_keys + ["header__change_oper", "header__change_seq"]
-    history_columns = header_cols + dfm_columns + [f"PRIMARY KEY ({','.join(history_keys)})"]
+    history_columns = header_cols + dfm_columns
     ops.append(
         (
             f"CREATE TABLE IF NOT EXISTS {schema_and_table}_history ({",".join(history_columns)}) "
