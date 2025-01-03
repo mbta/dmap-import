@@ -46,4 +46,6 @@ CUBIC_ODS_TABLES = [
     "EDW.RIDER_CLASS_DIMENSION",
     # "EDW.PURSE_TYPE_DIMENSION", # cubic not sending
     # "EDW.DISTRIBUTOR_ORDER", # no data
+    # POLICY
+    "EDW.MEMBER_DIMENSION",
 ]
