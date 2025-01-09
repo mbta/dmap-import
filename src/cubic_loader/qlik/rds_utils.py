@@ -1,5 +1,6 @@
 from typing import List
 from typing import Optional
+from typing import Tuple
 from datetime import date
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
@@ -181,23 +182,23 @@ def add_columns_to_table(new_columns: List[DFMSchemaFields], schema_and_table: s
     return " ".join(alter_strings)
 
 
-def bulk_delete_from_temp(schema_and_table: str, key_columns: List[str]) -> str:
+def bulk_delete_from_temp(schema_and_table: str, op_and_keys: List[Tuple[str, str]]) -> str:
     """
     create query to DELETE records from table based on key columns
     """
     tmp_table = f"{schema_and_table}_load"
-    where_clause = " AND ".join([f"{schema_and_table}.{t} IS NOT DISTINCT FROM {tmp_table}.{t}" for t in key_columns])
-    delete_query = f"DELETE FROM {schema_and_table} " f"USING {tmp_table} " f"WHERE {where_clause};"
+    where_clause = " AND ".join([f"{schema_and_table}.{t} {op} {tmp_table}.{t}" for op, t in op_and_keys])
+    delete_query = f"DELETE FROM {schema_and_table} USING {tmp_table} WHERE {where_clause};"
 
     return delete_query
 
 
-def bulk_update_from_temp(schema_and_table: str, update_column: str, key_columns: List[str]) -> str:
+def bulk_update_from_temp(schema_and_table: str, update_column: str, op_and_keys: List[Tuple[str, str]]) -> str:
     """
     create query to UPDATE records from table based on key columns
     """
     tmp_table = f"{schema_and_table}_load"
-    where_clause = " AND ".join([f"{schema_and_table}.{t} IS NOT DISTINCT FROM {tmp_table}.{t}" for t in key_columns])
+    where_clause = " AND ".join([f"{schema_and_table}.{t} {op} {tmp_table}.{t}" for op, t in op_and_keys])
     update_query = (
         f"UPDATE {schema_and_table} SET {update_column}={tmp_table}.{update_column} "
         f"FROM {tmp_table} WHERE {where_clause};"

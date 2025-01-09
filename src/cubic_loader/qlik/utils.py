@@ -5,6 +5,7 @@ import json
 from typing import NamedTuple
 from typing import TypedDict
 from typing import List
+from typing import Tuple
 
 import polars as pl
 
@@ -267,3 +268,16 @@ def dataframe_from_merged_csv(csv_path: str, dfm_path: str) -> pl.DataFrame:
     schema = polars_schema_from_dfm(dfm_path)
     df = pl.read_csv(csv_path, schema=schema).filter(pl.col("header__change_oper").ne("B"))
     return df
+
+
+def key_column_join_type(df: pl.DataFrame, key_columns: List[str]) -> List[Tuple[str, str]]:
+    """
+    Check for NULL counts in key_columns to determine if `=` or `IS NOT DISTINCT FROM` can be used
+    """
+    return_list = []
+    for column in key_columns:
+        if df.get_column(column).null_count() > 0:
+            return_list.append(("IS NOT DISTINCT FROM", column))
+        else:
+            return_list.append(("=", column))
+    return return_list
