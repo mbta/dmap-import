@@ -35,6 +35,7 @@ from cubic_loader.qlik.rds_utils import drop_table
 from cubic_loader.qlik.rds_utils import bulk_delete_from_temp
 from cubic_loader.qlik.rds_utils import bulk_update_from_temp
 from cubic_loader.qlik.rds_utils import bulk_insert_from_temp
+from cubic_loader.qlik.utils import key_column_join_type
 from cubic_loader.qlik.utils import DFMDetails
 from cubic_loader.qlik.utils import DFMSchemaFields
 from cubic_loader.qlik.utils import re_get_first
@@ -272,40 +273,41 @@ class CubicODSQlik:
             current_schema.append(column)
         self.update_status(last_schema=current_schema)
 
-    def cdc_update(self, cdc_df: pl.DataFrame, update_col: str, key_columns: List[str]) -> None:
+    def cdc_update(self, cdc_df: pl.DataFrame, tmp_table: str, key_columns: List[str]) -> None:
         """
         Perform UPDATE from cdc dataframe
         """
-        tmp_table = f"{self.db_fact_table}_load"
-        update_q = bulk_update_from_temp(self.db_fact_table, update_col, key_columns)
+        # Perform UPDATE Operations on fact table for each column indivduallly
+        for update_col in cdc_df.columns:
+            if update_col in key_columns or update_col in CDC_COLUMNS:
+                continue
 
-        update_df = (
-            cdc_df.filter(
-                pl.col("header__change_oper").eq("U"),
-                pl.col(update_col).is_not_null(),
+            update_df = (
+                cdc_df.filter(
+                    pl.col("header__change_oper").eq("U"),
+                    pl.col(update_col).is_not_null(),
+                )
+                .sort(by="header__change_seq", descending=True)
+                .unique(key_columns, keep="first")
+                .select(key_columns + [update_col])
             )
-            .sort(by="header__change_seq", descending=True)
-            .unique(key_columns, keep="first")
-            .select(key_columns + [update_col])
-        )
-        if update_df.shape[0] == 0:
-            return
+            if update_df.shape[0] == 0:
+                continue
 
-        with tempfile.TemporaryDirectory() as tmp_dir:
-            update_csv_path = os.path.join(tmp_dir, "update.csv")
-            update_df.write_csv(update_csv_path, quote_style="necessary")
-            self.db.truncate_table(tmp_table)
-            remote_csv_gz_copy(update_csv_path, tmp_table)
+            with tempfile.TemporaryDirectory() as tmp_dir:
+                update_csv_path = os.path.join(tmp_dir, "update.csv")
+                update_df.write_csv(update_csv_path, quote_style="necessary")
+                self.db.truncate_table(tmp_table)
+                remote_csv_gz_copy(update_csv_path, tmp_table)
 
-        self.db.execute(update_q)
+            op_and_key = key_column_join_type(update_df, key_columns)
+            update_q = bulk_update_from_temp(self.db_fact_table, update_col, op_and_key)
+            self.db.execute(update_q)
 
-    def cdc_delete(self, cdc_df: pl.DataFrame, key_columns: List[str]) -> None:
+    def cdc_delete(self, cdc_df: pl.DataFrame, tmp_table: str, key_columns: List[str]) -> None:
         """
         Perform DELETE from cdc dataframe
         """
-        tmp_table = f"{self.db_fact_table}_load"
-        delete_q = bulk_delete_from_temp(self.db_fact_table, key_columns)
-
         delete_df = (
             cdc_df.sort(by="header__change_seq", descending=True)
             .unique(key_columns, keep="first")
@@ -315,6 +317,9 @@ class CubicODSQlik:
         if delete_df.shape[0] == 0:
             return
 
+        op_and_key = key_column_join_type(delete_df, key_columns)
+        delete_q = bulk_delete_from_temp(self.db_fact_table, op_and_key)
+
         with tempfile.TemporaryDirectory() as tmp_dir:
             delete_csv_path = os.path.join(tmp_dir, "delete.csv")
             delete_df.write_csv(delete_csv_path, quote_style="necessary")
@@ -322,12 +327,10 @@ class CubicODSQlik:
             remote_csv_gz_copy(delete_csv_path, tmp_table)
         self.db.execute(delete_q)
 
-    def cdc_insert(self, cdc_df: pl.DataFrame) -> None:
+    def cdc_insert(self, cdc_df: pl.DataFrame, tmp_table: str) -> None:
         """
         Perform INSERT from cdc dataframe
         """
-        tmp_table = f"{self.db_fact_table}_load"
-
         insert_df = cdc_df.filter(pl.col("header__change_oper").eq("I")).drop(CDC_COLUMNS)
         if insert_df.shape[0] == 0:
             return
@@ -370,15 +373,11 @@ class CubicODSQlik:
             remote_csv_gz_copy(merge_csv, load_table)
             self.db.execute(bulk_insert_from_temp(self.db_history_table, load_table, cdc_df.columns))
 
-            self.cdc_insert(cdc_df)
+            self.cdc_insert(cdc_df, load_table)
 
-            # Perform UPDATE Operations on fact table for each column indivduallly
-            for update_col in cdc_df.columns:
-                if update_col in key_columns or update_col in CDC_COLUMNS:
-                    continue
-                self.cdc_update(cdc_df, update_col, key_columns)
+            self.cdc_update(cdc_df, load_table, key_columns)
 
-            self.cdc_delete(cdc_df, key_columns)
+            self.cdc_delete(cdc_df, load_table, key_columns)
 
             self.update_status(last_cdc_ts=max(cdc_ts, self.etl_status.last_cdc_ts))
             logger.log_complete()
