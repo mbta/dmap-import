@@ -6,6 +6,7 @@ Create Date: 2021-01-10 09:49:12.274894
 
 """
 
+import logging
 from typing import Sequence, Union
 
 from alembic import op
@@ -53,8 +54,6 @@ def upgrade() -> None:
             ,settlement_day_key desc
         ;
     """
-    op.execute(comp_a_view)
-
     comp_b_view = """
         CREATE OR REPLACE VIEW ods.wc700_comp_b 
         AS
@@ -86,7 +85,11 @@ def upgrade() -> None:
             ,settlement_day_key desc
         ;
     """
-    op.execute(comp_b_view)
+    try:
+        op.execute(comp_a_view)
+        op.execute(comp_b_view)
+    except Exception as exception:
+        logging.exception(exception)
 
 
 def downgrade() -> None:
