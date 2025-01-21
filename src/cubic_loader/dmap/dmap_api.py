@@ -1,6 +1,6 @@
 import os
 import time
-from typing import Optional, List, TypedDict
+from typing import List, TypedDict
 import datetime
 import requests
 
@@ -29,11 +29,11 @@ class ApiResponse(TypedDict):
     results: List[ApiResult]
 
 
-def apikey_from_environment(url: str) -> Optional[str]:
+def apikey_from_environment(url: str) -> str:
     """
     Get the `apikey` value from the environment
     """
-    default = None
+    default = "NOKEY"
     if "datasetpublicusersapi" in url:
         return os.getenv("PUBLIC_KEY", default)
     if "datasetcontrolleduserapi" in url:
@@ -119,9 +119,8 @@ def get_api_results(url: str, db_manager: DatabaseManager) -> List[ApiResult]:
     API Endpoints appear to produce a maximum of 100 records,
     any `limit` value > 100 is ignored.
 
-    `offset` parameters appears to be non-functional, utilizing `offset` had no
-    impact on returned results during API testing
-
+    as of Jan 21, 2025 `offset` parameters appears to be functional, will be utilized to capture
+    more than 100 results from API
     """
     api_results_log = ProcessLogger(
         "get_api_results",
@@ -136,53 +135,54 @@ def get_api_results(url: str, db_manager: DatabaseManager) -> List[ApiResult]:
     # add params to GET request
     # last_updated if last_update_dt available from ApiMetadata table
     # apikey based on contents of url endpoint string
-    headers = {}
-    params = {}
+    headers = {"apikey": apikey_from_environment(url)}
+    params = {"limit": "100"}
     if db_result:
         last_updated_dt: datetime.datetime = db_result[0]["last_updated"]
         params["last_updated"] = (last_updated_dt.date() - datetime.timedelta(days=1)).strftime("%Y-%m-%d")
         api_results_log.add_metadata(last_updated_dt=last_updated_dt.isoformat())
 
-    apikey = apikey_from_environment(url)
-
-    if apikey:
-        headers["apikey"] = apikey
-        params["apikey"] = apikey
-
     # execute GET request from CUBIC API Endpoint
     # will log and throw if 200 status_code not recieved
     # or if "success" attribute of ApiResponse is not True
     max_retries = 3
-    for retry_count in range(max_retries + 1):
-        api_results_log.add_metadata(retry_count=retry_count)
-        try:
-            response = requests.get(url, headers=headers, params=params, timeout=15)
-            response.raise_for_status()
-            response.close()
+    api_results = []
+    for limit_offset in range(10):
+        params["offset"] = str(int(params["limit"]) * limit_offset)
+        for retry_count in range(max_retries + 1):
+            api_results_log.add_metadata(retry_count=retry_count)
+            try:
+                response = requests.get(url, headers=headers, params=params, timeout=15)
+                response.raise_for_status()
+                response.close()
 
-            json_response: ApiResponse = response.json()
+                json_response: ApiResponse = response.json()
 
-            if not json_response["success"]:
-                raise AttributeError("No Results object recieved.")
+                if not json_response["success"]:
+                    raise AttributeError("No Results object recieved.")
+                break
+
+            except Exception as _:
+                if retry_count < max_retries:
+                    # wait and try again
+                    time.sleep(15)
+        else:
+            api_results_log.add_metadata(
+                status_code=response.status_code,
+                response=response.text,
+            )
+            exception = requests.HTTPError(response.text)
+            api_results_log.log_failure(exception)
+            raise exception
+
+        if len(json_response["results"]) == 0:
             break
-
-        except Exception as _:
-            if retry_count < max_retries:
-                # wait and try again
-                time.sleep(15)
-    else:
-        api_results_log.add_metadata(
-            status_code=response.status_code,
-            response=response.text,
-        )
-        exception = requests.HTTPError(response.text)
-        api_results_log.log_failure(exception)
-        raise exception
+        api_results += json_response["results"]
 
     # API Results appear to be sorted by `last_updated` by default, but this
     # sorting is required for proper updated of `last_updated` column
     # in ApiMetadata RDS table
-    api_results = sorted(json_response["results"], key=lambda result: result["last_updated"])
+    api_results.sort(key=lambda result: result["last_updated"])
 
     api_results_log.add_metadata(original_result_count=len(api_results))
 
