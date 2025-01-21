@@ -136,7 +136,7 @@ def get_api_results(url: str, db_manager: DatabaseManager) -> List[ApiResult]:
     # last_updated if last_update_dt available from ApiMetadata table
     # apikey based on contents of url endpoint string
     headers = {"apikey": apikey_from_environment(url)}
-    params = {"apikey": apikey_from_environment(url), "limit": "100"}
+    params = {"limit": "100"}
     if db_result:
         last_updated_dt: datetime.datetime = db_result[0]["last_updated"]
         params["last_updated"] = (last_updated_dt.date() - datetime.timedelta(days=1)).strftime("%Y-%m-%d")
