@@ -20,6 +20,7 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     comp_d_view = """
+        DROP VIEW IF EXISTS ods.wc700_comp_d;
         CREATE OR REPLACE VIEW ods.wc700_comp_d 
         AS
         SELECT 
