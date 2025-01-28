@@ -54,6 +54,7 @@ def upgrade() -> None:
         ;
     """
     try:
+        op.execute("DROP VIEW IF EXISTS ods.wc700_comp_a;")
         op.execute(comp_a_view)
     except Exception as exception:
         logging.exception(exception)
