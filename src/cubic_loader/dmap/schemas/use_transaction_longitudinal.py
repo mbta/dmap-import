@@ -10,7 +10,7 @@ class UseTransactionalLongitudinal(SqlBase):
 
     __tablename__ = "use_transaction_longitudinal"
 
-    pk_id = sa.Column(sa.Integer, primary_key=True)
+    pk_id = sa.Column(sa.BigInteger, primary_key=True)
     dataset_id = sa.Column(sa.String(), nullable=True, index=True)
     id = sa.Column(sa.String(), nullable=True)
     inserted_dtm = sa.Column(sa.DateTime, nullable=True)

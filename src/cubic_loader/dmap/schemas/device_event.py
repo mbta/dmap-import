@@ -9,7 +9,7 @@ class DeviceEvents(SqlBase):
 
     __tablename__ = "device_event"
 
-    pk_id = sa.Column(sa.Integer, primary_key=True)
+    pk_id = sa.Column(sa.BigInteger, primary_key=True)
     dataset_id = sa.Column(sa.String(), nullable=True, index=True)
     id = sa.Column(sa.String(), nullable=True)
     inserted_dtm = sa.Column(sa.DateTime, nullable=True)
