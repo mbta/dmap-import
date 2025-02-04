@@ -22,14 +22,16 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
+    pass
     # Delete status files for all tables loaded since the NOT NULL Primary Key requirement was dropped.
     # This will force a reset/re-load for these tables in dmap-import DB
-    s3_delete_object(os.path.join(ODS_STATUS, "EDW.PAYMENT_SUMMARY.json"))
-    s3_delete_object(os.path.join(ODS_STATUS, "EDW.MEMBER_DIMENSION.json"))
-    op.drop_table("edw_payment_summary", schema="ods")
-    op.drop_table("edw_payment_summary_history", schema="ods")
-    op.drop_table("edw_member_dimension", schema="ods")
-    op.drop_table("edw_member_dimension_history", schema="ods")
+    # This was one-time migration, does not need to remain active
+    # s3_delete_object(os.path.join(ODS_STATUS, "EDW.PAYMENT_SUMMARY.json"))
+    # s3_delete_object(os.path.join(ODS_STATUS, "EDW.MEMBER_DIMENSION.json"))
+    # op.drop_table("edw_payment_summary", schema="ods")
+    # op.drop_table("edw_payment_summary_history", schema="ods")
+    # op.drop_table("edw_member_dimension", schema="ods")
+    # op.drop_table("edw_member_dimension_history", schema="ods")
 
 
 def downgrade() -> None:

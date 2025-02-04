@@ -445,7 +445,7 @@ class CubicODSQlik:
         self.etl_status = self.load_etl_status()
 
         self.db.execute(drop_table(self.db_history_table))
-        self.db.execute(drop_table(self.db_fact_table))
+        self.db.truncate_table(self.db_fact_table, restart_identity=True, cascade=True)
 
     def run_etl(self) -> None:
         """
