@@ -345,6 +345,19 @@ class DatabaseManager:
         )
         return self.select(query)["exists"]
 
+    def refresh_mat_views(self, schema: str) -> None:
+        """
+        Refresh all materizliaed views in 'schema'.
+
+        :param schema: schema for view to refresh
+        """
+        query = f"SELECT matviewname FROM pg_catalog.pg_matviews WHERE schemaname='{schema}';"
+        for mat_view in self.select_as_list(query):
+            mat_view_name = mat_view["matviewname"]
+            log = ProcessLogger("refresh_mat_view", schema=schema, mat_view_name=mat_view_name)
+            self.execute(f"REFRESH MATERIALIZED VIEW '{schema}'.'{mat_view_name}';")
+            log.log_complete()
+
 
 def copy_local_to_db(local_path: str, destination_table: DeclarativeBase) -> None:
     """
