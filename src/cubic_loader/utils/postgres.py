@@ -355,7 +355,7 @@ class DatabaseManager:
         for mat_view in self.select_as_list(query):
             mat_view_name = mat_view["matviewname"]
             log = ProcessLogger("refresh_mat_view", schema=schema, mat_view_name=mat_view_name)
-            self.execute(f"REFRESH MATERIALIZED VIEW '{schema}'.'{mat_view_name}';")
+            self.execute(f'REFRESH MATERIALIZED VIEW {schema}."{mat_view_name}";')
             log.log_complete()
 
 
