@@ -21,10 +21,10 @@ from cubic_loader.utils.aws import s3_upload_file
 from cubic_loader.utils.aws import s3_delete_object
 from cubic_loader.utils.aws import s3_download_object
 from cubic_loader.utils.remote_locations import S3_ARCHIVE
-from cubic_loader.utils.remote_locations import S3_ERROR
 from cubic_loader.utils.remote_locations import QLIK
 from cubic_loader.utils.remote_locations import ODS_STATUS
 from cubic_loader.utils.remote_locations import ODS_SCHEMA
+from cubic_loader.utils.remote_locations import ODIN_PROCESSED
 from cubic_loader.utils.postgres import DatabaseManager
 from cubic_loader.utils.postgres import remote_csv_gz_copy
 from cubic_loader.utils.postgres import header_from_csv_gz
@@ -56,7 +56,7 @@ from cubic_loader.utils.logger import ProcessLogger
 
 def get_snapshot_dfms(table: str) -> List[DFMDetails]:
     """find all available snapshot dfm files for a qlik table from Archive bucket"""
-    prefix = os.path.join(QLIK, f"{table}/")
+    prefix = os.path.join(ODIN_PROCESSED, QLIK, f"{table}/")
     archive_dfms = s3_list_objects(S3_ARCHIVE, prefix, in_filter=".dfm")
 
     found_snapshots = []
@@ -76,15 +76,10 @@ def get_cdc_gz_csvs(etl_status: TableStatus, table: str) -> List[str]:
 
     :return: List of ChangeFile objects sorted by 'ts' (Ascending)
     """
-    table_prefix = os.path.join(QLIK, f"{table}__ct/")
+    table_prefix = os.path.join(ODIN_PROCESSED, QLIK, f"{table}__ct/")
     snapshot_prefix = f"{table_prefix}snapshot={etl_status.current_snapshot_ts}/"
 
     cdc_csvs = s3_list_cdc_gz_objects(S3_ARCHIVE, snapshot_prefix, min_ts=etl_status.last_cdc_ts)
-
-    # filter error files from table folder
-    for csv_file in s3_list_cdc_gz_objects(S3_ERROR, table_prefix, min_ts=etl_status.last_cdc_ts):
-        if re_get_first(csv_file, RE_SNAPSHOT_TS) > etl_status.current_snapshot_ts:
-            cdc_csvs.append(csv_file)
 
     return sorted(cdc_csvs, key=lambda l: re_get_first(l, RE_CDC_TS))
 
