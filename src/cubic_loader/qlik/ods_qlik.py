@@ -63,6 +63,11 @@ def get_snapshot_dfms(table: str) -> List[DFMDetails]:
     for dfm in archive_dfms:
         found_snapshots.append(DFMDetails(path=dfm, ts=re_get_first(dfm, RE_SNAPSHOT_TS)))
 
+    prefix = os.path.join(ODIN_PROCESSED, QLIK, f"{table}/")
+    odin_archive_dfms = s3_list_objects(S3_ARCHIVE, prefix, in_filter=".dfm")
+    for dfm in odin_archive_dfms:
+        found_snapshots.append(DFMDetails(path=dfm, ts=re_get_first(dfm, RE_SNAPSHOT_TS)))
+
     assert len(found_snapshots) > 0
 
     return sorted(found_snapshots, key=attrgetter("ts"))

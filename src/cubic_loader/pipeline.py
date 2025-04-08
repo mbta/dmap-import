@@ -52,8 +52,13 @@ def start_qlik_load() -> None:
     db = DatabaseManager()
 
     for cubic_table in CUBIC_ODS_TABLES:
-        qlik_table = CubicODSQlik(cubic_table, db)
-        qlik_table.run_etl()
+        try:
+            log = ProcessLogger("CubicODSQlik", cubic_table=cubic_table)
+            qlik_table = CubicODSQlik(cubic_table, db)
+            qlik_table.run_etl()
+            log.log_complete()
+        except Exception as exception:
+            log.log_failure(exception)
 
     db.refresh_mat_views(ODS_SCHEMA)
 
