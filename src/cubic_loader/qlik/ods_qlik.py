@@ -433,7 +433,7 @@ class CubicODSQlik:
                     pass
 
                 # load any cdc hash folder greater than max_folder_bytes
-                self.cdc_check_load_folders(tmp_dir, max_folder_bytes=60_000_000)
+                self.cdc_check_load_folders(tmp_dir, max_folder_bytes=30_000_000)
 
             # load all remaining cdc hash folders
             self.cdc_check_load_folders(tmp_dir)
