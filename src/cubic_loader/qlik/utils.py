@@ -265,7 +265,7 @@ def dataframe_from_merged_csv(csv_path: str, dfm_path: str) -> pl.DataFrame:
     :return: polars dataframe of csv_path file
     """
     schema = polars_schema_from_dfm(dfm_path)
-    df = pl.read_csv(csv_path, schema=schema).filter(pl.col("header__change_oper").ne("B"))
+    df = pl.scan_csv(csv_path, schema=schema).filter(pl.col("header__change_oper").ne("B")).collect()
     return df
 
 
