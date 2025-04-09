@@ -367,7 +367,7 @@ class CubicODSQlik:
         """
         logger = ProcessLogger("cdc_load_folder", load_folder=load_folder, table=self.db_fact_table)
         try:
-            dfm_object = os.listdir(load_folder)[0].replace(".csv.gz", ".dfm").replace("|", "/")
+            dfm_object = os.listdir(load_folder)[0].replace(".csv", ".dfm").replace("|", "/")
             merge_csv = os.path.join(load_folder, MERGED_FNAME)
             key_columns = [col["name"].lower() for col in self.etl_status.last_schema if col["primaryKeyPos"] > 0]
             load_table = f"{self.db_fact_table}_load"
