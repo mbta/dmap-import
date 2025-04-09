@@ -20,7 +20,6 @@ from cubic_loader.utils.aws import s3_object_exists
 from cubic_loader.utils.aws import s3_split_object_path
 from cubic_loader.utils.aws import s3_upload_file
 from cubic_loader.utils.aws import s3_delete_object
-from cubic_loader.utils.aws import s3_download_object
 from cubic_loader.utils.remote_locations import S3_ARCHIVE
 from cubic_loader.utils.remote_locations import QLIK
 from cubic_loader.utils.remote_locations import ODS_STATUS
@@ -108,7 +107,7 @@ def thread_save_csv_file(args: Tuple[str, str]) -> None:
     logger = ProcessLogger("download_cdc_file", csv_object=csv_object)
 
     try:
-        csv_local_file = csv_object.replace("s3://", "").replace("/", "|").replace(".csv.gz",".csv")
+        csv_local_file = csv_object.replace("s3://", "").replace("/", "|").replace(".csv.gz", ".csv")
         csv_local_path = os.path.join(tmp_dir, csv_local_file)
         with gzip.open(s3_get_object(csv_object), "rb") as r_bytes:
             with open(csv_local_path, mode="wb") as w_bytes:
@@ -436,7 +435,7 @@ class CubicODSQlik:
                     pass
 
                 # load any cdc hash folder greater than max_folder_bytes
-                self.cdc_check_load_folders(tmp_dir, max_folder_bytes=256*1024*1024)
+                self.cdc_check_load_folders(tmp_dir, max_folder_bytes=256 * 1024 * 1024)
 
             # load all remaining cdc hash folders
             self.cdc_check_load_folders(tmp_dir)

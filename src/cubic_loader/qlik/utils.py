@@ -1,6 +1,5 @@
 import os
 import re
-import gzip
 import json
 from typing import NamedTuple
 from typing import TypedDict
