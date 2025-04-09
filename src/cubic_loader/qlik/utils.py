@@ -194,7 +194,7 @@ def merge_cdc_csv_gz_files(tmp_dir: str) -> str:
     with open(merge_file, "wb") as fout:
         for cdc_path in cdc_paths:
             max_ts = max(max_ts, re_get_first(cdc_path, RE_CDC_TS))
-            with gzip.open(cdc_path, "rb") as f:
+            with open(cdc_path, "rb") as f:
                 if fout.tell() > 0:
                     next(f)
                 fout.write(f.read())

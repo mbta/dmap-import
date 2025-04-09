@@ -1,4 +1,5 @@
 import os
+import gzip
 import json
 import hashlib
 import shutil
@@ -99,7 +100,7 @@ def thread_save_csv_file(args: Tuple[str, str]) -> None:
     """
     work to download and partition cdc files
 
-    - download csv.gz file to tmp_folder
+    - save csv.gz as .csv file to tmp_folder
     - encode header row as sha1 hash for foldername
     - move file into hash foldername
     """
@@ -107,9 +108,11 @@ def thread_save_csv_file(args: Tuple[str, str]) -> None:
     logger = ProcessLogger("download_cdc_file", csv_object=csv_object)
 
     try:
-        csv_local_file = csv_object.replace("s3://", "").replace("/", "|")
+        csv_local_file = csv_object.replace("s3://", "").replace("/", "|").replace(".csv.gz",".csv")
         csv_local_path = os.path.join(tmp_dir, csv_local_file)
-        s3_download_object(csv_object, csv_local_path)
+        with gzip.open(s3_get_object(csv_object), "rb") as r_bytes:
+            with open(csv_local_path, mode="wb") as w_bytes:
+                w_bytes.write(r_bytes.read())
 
         csv_headers = header_from_csv_gz(csv_local_path)
         hash_folder = os.path.join(tmp_dir, hashlib.sha1(csv_headers.encode("utf8")).hexdigest())
@@ -433,7 +436,7 @@ class CubicODSQlik:
                     pass
 
                 # load any cdc hash folder greater than max_folder_bytes
-                self.cdc_check_load_folders(tmp_dir, max_folder_bytes=30_000_000)
+                self.cdc_check_load_folders(tmp_dir, max_folder_bytes=256*1024*1024)
 
             # load all remaining cdc hash folders
             self.cdc_check_load_folders(tmp_dir)
