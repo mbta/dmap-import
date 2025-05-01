@@ -56,12 +56,12 @@ from cubic_loader.utils.logger import ProcessLogger
 
 def get_snapshot_dfms(table: str) -> List[DFMDetails]:
     """find all available snapshot dfm files for a qlik table from Archive bucket"""
-    prefix = os.path.join(QLIK, f"{table}/")
-    archive_dfms = s3_list_objects(S3_ARCHIVE, prefix, in_filter=".dfm")
+    # prefix = os.path.join(QLIK, f"{table}/")
+    # archive_dfms = s3_list_objects(S3_ARCHIVE, prefix, in_filter=".dfm")
 
     found_snapshots = []
-    for dfm in archive_dfms:
-        found_snapshots.append(DFMDetails(path=dfm, ts=re_get_first(dfm, RE_SNAPSHOT_TS)))
+    # for dfm in archive_dfms:
+    #     found_snapshots.append(DFMDetails(path=dfm, ts=re_get_first(dfm, RE_SNAPSHOT_TS)))
 
     prefix = os.path.join(ODIN_PROCESSED, QLIK, f"{table}/")
     odin_archive_dfms = s3_list_objects(S3_ARCHIVE, prefix, in_filter=".dfm")
@@ -87,10 +87,10 @@ def get_cdc_gz_csvs(etl_status: TableStatus, table: str) -> List[str]:
     cdc_csvs = s3_list_cdc_gz_objects(S3_ARCHIVE, snapshot_prefix, min_ts=etl_status.last_cdc_ts)
 
     # Temp read from qlik archive while ODIN Prod is down.
-    table_prefix = os.path.join(QLIK, f"{table}__ct/")
-    snapshot_prefix = f"{table_prefix}snapshot={etl_status.current_snapshot_ts}/"
+    # table_prefix = os.path.join(QLIK, f"{table}__ct/")
+    # snapshot_prefix = f"{table_prefix}snapshot={etl_status.current_snapshot_ts}/"
 
-    cdc_csvs += s3_list_cdc_gz_objects(S3_ARCHIVE, snapshot_prefix, min_ts=etl_status.last_cdc_ts)
+    # cdc_csvs += s3_list_cdc_gz_objects(S3_ARCHIVE, snapshot_prefix, min_ts=etl_status.last_cdc_ts)
 
     return sorted(cdc_csvs, key=lambda l: re_get_first(l, RE_CDC_TS))
 
