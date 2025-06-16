@@ -11,6 +11,7 @@ from typing import Sequence, Union
 from alembic import op
 import sqlalchemy as sa
 
+from cubic_loader.utils.postgres import DatabaseManager
 from cubic_loader.qlik.sql_strings.views import AD_HOC_VIEW
 from cubic_loader.qlik.sql_strings.views import COMP_A_VIEW
 from cubic_loader.qlik.sql_strings.views import COMP_B_VIEW
@@ -28,6 +29,12 @@ def upgrade() -> None:
     op.execute("ALTER SEQUENCE sale_transaction_pk_id_seq AS bigint;")
     op.execute("ALTER SEQUENCE use_transaction_location_pk_id_seq AS bigint;")
     op.execute("ALTER SEQUENCE use_transaction_longitudinal_pk_id_seq AS bigint;")
+
+    db = DatabaseManager()
+    schema_check_query = "SELECT COUNT(*) from information_schema.tables WHERE table_schema = 'ods';"
+    if db.select(schema_check_query)["count"] == 0:
+        return
+
     op.execute("CREATE INDEX idx_abp_tap_inserted ON ods.edw_abp_tap (source_inserted_dtm);")
     op.execute(AD_HOC_VIEW)
     op.execute(COMP_A_VIEW)
