@@ -11,6 +11,8 @@ from typing import Sequence, Union
 
 from alembic import op
 
+from cubic_loader.utils.postgres import DatabaseManager
+
 # revision identifiers, used by Alembic.
 revision: str = "ab250e2a0b0d"
 down_revision: Union[str, None] = "f2c5a52c7149"
@@ -19,6 +21,11 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
+    db = DatabaseManager()
+    schema_check_query = "SELECT COUNT(*) from information_schema.tables WHERE table_schema = 'ods';"
+    if db.select(schema_check_query)["count"] == 0:
+        return
+
     comp_d_view = """
         DROP VIEW IF EXISTS ods.wc700_comp_d;
         CREATE OR REPLACE VIEW ods.wc700_comp_d 
