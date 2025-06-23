@@ -15,7 +15,7 @@ class DeviceEvents(SqlBase):
     inserted_dtm = sa.Column(sa.DateTime, nullable=True)
     updated_dtm = sa.Column(sa.DateTime, nullable=True)
     depersonalized_dtm = sa.Column(sa.DateTime, nullable=True)
-    updated_flag = sa.Column(sa.Integer, nullable=True)
+    updated_flag = sa.Column(sa.String(), nullable=True)
     event_type_id = sa.Column(sa.BigInteger, nullable=True)
     event_source = sa.Column(sa.String(), nullable=True)
     event_type_name = sa.Column(sa.String(), nullable=True)
