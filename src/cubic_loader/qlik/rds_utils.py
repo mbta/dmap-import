@@ -8,7 +8,7 @@ from dateutil.relativedelta import relativedelta
 from cubic_loader.qlik.utils import DFMSchemaFields
 
 
-def qlik_type_to_pg(qlik_type: str, scale: int) -> str:
+def qlik_type_to_pg(qlik_type: str, scale: int, precision: int) -> str:
     """
     convert qlik datatype from DFM file to postgres type
 
@@ -41,10 +41,10 @@ def qlik_type_to_pg(qlik_type: str, scale: int) -> str:
         return_type = "INTEGER"
     elif "INT4" in qlik_type:
         return_type = "BIGINT"
-    elif "NUMERIC" in qlik_type and scale == 0:
+    elif "NUMERIC" in qlik_type and scale == 0 and precision < 19:
         return_type = "BIGINT"
     elif "NUMERIC" in qlik_type:
-        return_type = "DOUBLE PRECISION"
+        return_type = f"NUMERIC({precision},{scale})"
     else:
         return_type = "VARCHAR"
 
@@ -66,7 +66,7 @@ def create_tables_from_schema(schema: List[DFMSchemaFields], schema_and_table: s
     dfm_columns: List[str] = []
     dfm_keys: List[str] = []
     for column in schema:
-        dfm_columns.append(f"{column['name']} {qlik_type_to_pg(column['type'], column['scale'])}")
+        dfm_columns.append(f"{column['name']} {qlik_type_to_pg(column['type'], column['scale'], column['precision'])}")
         if column["primaryKeyPos"] > 0:
             dfm_keys.append(column["name"])
 
@@ -91,7 +91,7 @@ def create_tables_from_schema(schema: List[DFMSchemaFields], schema_and_table: s
         ("header__change_oper", "CHANGE_OPER"),
         ("header__change_seq", "CHANGE_SEQ"),
     )
-    header_cols: List[str] = [f"{col[0]} {qlik_type_to_pg(col[1], 0)}" for col in header_fields]
+    header_cols: List[str] = [f"{col[0]} {qlik_type_to_pg(col[1], 0, 0)}" for col in header_fields]
     history_columns = header_cols + dfm_columns
     ops.append(
         (
@@ -176,7 +176,7 @@ def add_columns_to_table(new_columns: List[DFMSchemaFields], schema_and_table: s
     for column in new_columns:
         for table in tables:
             alter_strings.append(
-                f"ALTER TABLE {table} ADD {column['name']} {qlik_type_to_pg(column['type'], column['scale'])};"
+                f"ALTER TABLE {table} ADD {column['name']} {qlik_type_to_pg(column['type'], column['scale'], column['precision'])};"
             )
 
     return " ".join(alter_strings)
