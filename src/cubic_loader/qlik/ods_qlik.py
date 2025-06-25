@@ -238,31 +238,49 @@ class CubicODSQlik:
         :param dfm_object: S3 path of .dfm file that wil be used for verification
         """
         cdc_schema = dfm_schema_to_df(dfm_object)
-        cdc_name_set = set(cdc_schema.get_column("name"))
 
         # check dfm schema contains CDC_COLUMNS
-        assert set(CDC_COLUMNS).issubset(cdc_name_set)
+        assert set(CDC_COLUMNS).issubset(set(cdc_schema.get_column("name")))
         cdc_schema = cdc_schema.filter(pl.col("name").is_in(CDC_COLUMNS).not_())
 
         truth_schema = status_schema_to_df(self.etl_status)
-        truth_name_set = set(truth_schema.get_column("name"))
-        new_columns = cdc_schema.join(
-            truth_schema,
-            on=truth_schema.columns,
-            how="anti",
-            join_nulls=True,
-        )
 
-        # cdc_schema and truth_schema overlap, no action needed
-        if new_columns.shape[0] == 0:
+        # primaryKey check
+        assert (
+            cdc_schema.filter(pl.col("primaryKeyPos") > 0)
+            .get_column("name")
+            .equals(truth_schema.filter(pl.col("primaryKeyPos") > 0).get_column("name"))
+        ), f"primaryKey changed for table {self.table}"
+
+        # check dimenstion change(type, precision or scale)
+        dimension_check = (
+            cdc_schema.join(truth_schema, on="name", how="inner", suffix="_t")
+            .filter(
+                (pl.col("type") != pl.col("type_t"))
+                | (pl.col("precision") != pl.col("precision_t"))
+                | (pl.col("scale") != pl.col("scale_t"))
+            )
+            .select(
+                pl.format(
+                    "{}(NEW vs OLD, type:{} vs {}, precision:{} vs {}, scale:{} vs {})",
+                    "name",
+                    "type",
+                    "type_t",
+                    "precision",
+                    "precision_t",
+                    "scale",
+                    "scale_t",
+                ).alias("assert_fmt")
+            )
+            .get_column("assert_fmt")
+            .to_list()
+        )
+        assert len(dimension_check) == 0, f"dimension change in {dfm_object} -> {','.join(dimension_check)}"
+
+        add_columns: List[DFMSchemaFields] = cdc_schema.join(truth_schema, on="name", how="anti").to_dicts()  # type: ignore
+        if len(add_columns) == 0:
             return
 
-        # check if new_columns contains columns in truth schema, would
-        # indicate that a different dimension of the table changed (type, primary key)
-        new_truth_common = truth_name_set.intersection(set(new_columns.get_column("name")))
-        assert len(new_truth_common) == 0, f"column dimension changed for {new_truth_common} from {dfm_object}"
-
-        add_columns: List[DFMSchemaFields] = new_columns.to_dicts()  # type: ignore
         self.db.execute(add_columns_to_table(add_columns, self.db_fact_table))
         current_schema = self.etl_status.last_schema
         for column in add_columns:
