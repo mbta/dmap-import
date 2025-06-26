@@ -176,7 +176,7 @@ def add_columns_to_table(new_columns: List[DFMSchemaFields], schema_and_table: s
     for column in new_columns:
         for table in tables:
             alter_strings.append(
-                f"ALTER TABLE {table} ADD {column['name']} {qlik_type_to_pg(column['type'], column['scale'], column['precision'])};"
+                f"ALTER TABLE {table} ADD COLUMN IF NOT EXISTS {column['name']} {qlik_type_to_pg(column['type'], column['scale'], column['precision'])};"
             )
 
     return " ".join(alter_strings)
