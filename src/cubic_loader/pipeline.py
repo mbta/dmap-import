@@ -60,6 +60,8 @@ def start_qlik_load() -> None:
         except Exception as exception:
             log.log_failure(exception)
 
+        del qlik_table
+
     db.refresh_mat_views(ODS_SCHEMA)
 
 
