@@ -435,7 +435,7 @@ class CubicODSQlik:
 
         with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp_dir:
             work_files = [(wf, tmp_dir) for wf in get_cdc_gz_csvs(self.etl_status, self.table)]
-            for batch in batched(work_files, 10):
+            for batch in batched(work_files, 4):
                 # Download batch of cdc csv.gz files
                 for _ in pool.map(thread_save_csv_file, batch):
                     pass
