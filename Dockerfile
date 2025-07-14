@@ -3,6 +3,10 @@ FROM python:3.12-slim
 # Prevents buffering for easier container logging
 ENV PYTHONUNBUFFERED 1
 
+# Mount /tmp VOLUME for AWS mem leak bug
+RUN mkdir -p /tmp && chmod 777 /tmp
+VOLUME ["/tmp"]
+
 # Install non python dependencies
 RUN apt-get update --fix-missing
 RUN apt-get install -y libpq-dev gcc curl gzip zip unzip postgresql-client
