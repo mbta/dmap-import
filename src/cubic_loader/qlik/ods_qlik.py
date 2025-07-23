@@ -121,11 +121,10 @@ class CubicODSQlik:
     used to load ODS data from S3 bucket to RDS tables
     """
 
-    def __init__(self, table: str, db: DatabaseManager, schema: str = ODS_SCHEMA):
+    def __init__(self, table: str, schema: str = ODS_SCHEMA):
         """
         :param table: Cubic ODS Table Name eg ("EDW.CARD_DIMENSION")
         """
-        self.db = db
         self.table = table
         self.status_path = os.path.join(ODS_STATUS, f"{table}.json")
         self.db_fact_table = f"{schema}.{table.replace(".", "_").lower()}"
@@ -469,6 +468,8 @@ class CubicODSQlik:
         If a new QLIK Snapshot is detected, all existing tables will be dropped and whole process will be
         reset to load NEW Snapshot
         """
+        # pylint: disable-next=attribute-defined-outside-init
+        self.db = DatabaseManager()
         logger = ProcessLogger(
             "ods_qlik_run_etl",
             table=self.db_fact_table,
