@@ -1,4 +1,5 @@
 import os
+from multiprocessing import get_context
 
 from cubic_loader.utils.aws import check_for_parallel_tasks
 from cubic_loader.utils.logger import ProcessLogger
@@ -49,19 +50,21 @@ def start_qlik_load() -> None:
     """
     os.environ["SERVICE_NAME"] = "qlik_loader"
 
-    db = DatabaseManager()
-
     for cubic_table in CUBIC_ODS_TABLES:
         try:
             log = ProcessLogger("CubicODSQlik", cubic_table=cubic_table)
-            qlik_table = CubicODSQlik(cubic_table, db)
-            qlik_table.run_etl()
-            log.log_complete()
+            qlik_table = CubicODSQlik(cubic_table)
+            proc = get_context("spawn").Process(target=qlik_table.run_etl)
+            proc.start()
+            proc.join()
+            if proc.exitcode == 0:
+                log.log_complete()
+            else:
+                raise SystemError(f"CubicODSQlik Job died with exitcode={proc.exitcode}")
         except Exception as exception:
             log.log_failure(exception)
 
-        del qlik_table
-
+    db = DatabaseManager()
     db.refresh_mat_views(ODS_SCHEMA)
 
 
