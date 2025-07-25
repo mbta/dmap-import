@@ -182,6 +182,28 @@ def add_columns_to_table(new_columns: List[DFMSchemaFields], schema_and_table: s
     return " ".join(alter_strings)
 
 
+def convert_cols_to_string(new_columns: list[str], schema_and_table: str) -> str:
+    """
+    produce ALTER table statement to convert columns to VARCHAR type
+
+    :param new_columns: List of column names to convert to VARCHAR
+    :param schema_and_table: name and schema of table as 'schema.table'
+
+    :return: string to create all new columns
+    """
+    tables = (
+        schema_and_table,
+        f"{schema_and_table}_history",
+        f"{schema_and_table}_load",
+    )
+    alter_strings: List[str] = []
+    for column in new_columns:
+        for table in tables:
+            alter_strings.append(f"ALTER TABLE {table} ALTER {column} TYPE VARCHAR;")
+
+    return " ".join(alter_strings)
+
+
 def bulk_delete_from_temp(schema_and_table: str, op_and_keys: List[Tuple[str, str]]) -> str:
     """
     create query to DELETE records from table based on key columns
