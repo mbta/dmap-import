@@ -1,4 +1,4 @@
-COMP_B_ADDENDUM = """
+WC700_COMP_B_ADDENDUM = """
     DROP MATERIALIZED VIEW IF EXISTS ods.wc700_comp_b_addendum;
     CREATE MATERIALIZED VIEW ods.wc700_comp_b_addendum AS
     SELECT
@@ -18,22 +18,22 @@ COMP_B_ADDENDUM = """
         ,ut.retrieval_ref_nbr
     FROM
         ods.edw_use_transaction ut
-    JOIN ods.edw_patron_trip tr 
+    JOIN ods.edw_patron_trip tr
         ON tr.patron_trip_id = ut.patron_trip_id and tr.source = ut.source
-    JOIN ods.edw_trip_payment tp 
+    JOIN ods.edw_trip_payment tp
         ON tp.patron_trip_id = ut.patron_trip_id and tp.source = ut.source and tp.trip_price_count = ut.trip_price_count
-    JOIN ods.edw_card_dimension cd 
+    JOIN ods.edw_card_dimension cd
         ON cd.card_key = ut.card_key
-    LEFT JOIN ods.edw_sale_transaction s 
+    LEFT JOIN ods.edw_sale_transaction s
         ON s.purse_load_id = tp.purse_load_id
-    LEFT JOIN ods.edw_transaction_history th 
+    LEFT JOIN ods.edw_transaction_history th
         ON th.dw_transaction_id = ut.dw_transaction_id
     WHERE
         s.sale_type_key = 26
-        and ( 
+        and (
                 (tp.journal_entry_type_id <> 131 and tp.is_reversal = 1 and ut.txn_status_key in (36, 59))
                 or (tp.journal_entry_type_id <> 131 and tp.is_reversal = 0 and ut.txn_status_key not in (36, 59, 50))
-                or (tp.journal_entry_type_id = 131 and ut.ride_type_key = 24) 
+                or (tp.journal_entry_type_id = 131 and ut.ride_type_key = 24)
             )
         and (
             ut.bankcard_payment_value <> 0
@@ -43,9 +43,9 @@ COMP_B_ADDENDUM = """
     ;
 """
 
-LATE_TAP_ADJUSTMENT = """
-    DROP MATERIALIZED VIEW IF EXISTS ods.late_tap_adjustment;
-    CREATE MATERIALIZED VIEW ods.late_tap_adjustment AS
+WC320_LATE_TAP_ADJUSTMENT = """
+    DROP MATERIALIZED VIEW IF EXISTS ods.wc320_late_tap_adjustment;
+    CREATE MATERIALIZED VIEW ods.wc320_late_tap_adjustment AS
     SELECT
         s.settlement_day_key
         ,s.operating_day_key
