@@ -1,8 +1,8 @@
-AD_HOC_VIEW = """
+AD_HOC_PROCESSED_TAPS_VIEW = """
     DROP VIEW IF EXISTS ods.ad_hoc_processed_taps;
-    CREATE OR REPLACE VIEW ods.ad_hoc_processed_taps 
+    CREATE OR REPLACE VIEW ods.ad_hoc_processed_taps
     AS
-    SELECT 
+    SELECT
         tap_id
         ,transaction_dtm
         ,device_id
@@ -23,11 +23,11 @@ AD_HOC_VIEW = """
     ;
 """
 
-COMP_A_VIEW = """
+WC700_COMP_A_VIEW = """
     DROP VIEW IF EXISTS ods.wc700_comp_a;
-    CREATE OR REPLACE VIEW ods.wc700_comp_a 
+    CREATE OR REPLACE VIEW ods.wc700_comp_a
     AS
-    SELECT 
+    SELECT
         ps.settlement_day_key
         ,ps.operating_day_key
         ,ps.payment_type_key
@@ -37,15 +37,15 @@ COMP_A_VIEW = """
         ,SUM(COALESCE(pass_cost,0))/100 AS pass_cost
         ,SUM(COALESCE(enablement_fee,0))/100 AS enablement_fee
         ,SUM(COALESCE(transit_value,0) + COALESCE(benefit_value,0) + COALESCE(bankcard_payment_value,0) + COALESCE(one_account_value,0) + COALESCE(pass_cost,0) + COALESCE(enablement_fee,0) + COALESCE(replacement_fee, 0))/100 AS total_fare_revenue
-    FROM 
+    FROM
         ods.edw_payment_summary ps
-    JOIN 
-        ods.edw_txn_channel_map tcm 
-        ON 
-            tcm.txn_source = ps.txn_source 
-            AND tcm.sales_channel_key = ps.sales_channel_key 
+    JOIN
+        ods.edw_txn_channel_map tcm
+        ON
+            tcm.txn_source = ps.txn_source
+            AND tcm.sales_channel_key = ps.sales_channel_key
             and tcm.payment_type_key = ps.payment_type_key
-    WHERE 
+    WHERE
         tcm.txn_group = 'Product Sales'
     GROUP BY
         ps.settlement_day_key
@@ -60,26 +60,26 @@ COMP_A_VIEW = """
 """
 
 
-COMP_B_VIEW = """
+WC700_COMP_B_VIEW = """
     DROP VIEW IF EXISTS ods.wc700_comp_b;
-    CREATE OR REPLACE VIEW ods.wc700_comp_b 
+    CREATE OR REPLACE VIEW ods.wc700_comp_b
     AS
-    SELECT 
+    SELECT
         ps.settlement_day_key
         ,ps.operating_day_key
         ,ps.payment_type_key
         ,tcm.txn_channel_display
         ,tcm.sales_channel_display
         ,SUM(COALESCE(payment_value,0))/100 AS total_fare_revenue
-    FROM 
+    FROM
         ods.edw_payment_summary ps
-    JOIN 
-        ods.edw_txn_channel_map tcm 
-        ON 
-            tcm.txn_source = ps.txn_source 
-            AND tcm.sales_channel_key = ps.sales_channel_key 
+    JOIN
+        ods.edw_txn_channel_map tcm
+        ON
+            tcm.txn_source = ps.txn_source
+            AND tcm.sales_channel_key = ps.sales_channel_key
             and tcm.payment_type_key = ps.payment_type_key
-    WHERE 
+    WHERE
         tcm.txn_group = 'Open Payment Trips'
     GROUP BY
         ps.settlement_day_key
@@ -94,7 +94,7 @@ COMP_B_VIEW = """
 """
 
 
-COMP_C_VIEW = """
+WC700_COMP_C_VIEW = """
     DROP VIEW IF EXISTS ods.wc700_comp_c;
     CREATE VIEW ods.wc700_comp_c
     AS
@@ -135,11 +135,11 @@ COMP_C_VIEW = """
 """
 
 
-COMP_D_VIEW = """
+WC700_COMP_D_VIEW = """
     DROP VIEW IF EXISTS ods.wc700_comp_d;
-    CREATE OR REPLACE VIEW ods.wc700_comp_d 
+    CREATE OR REPLACE VIEW ods.wc700_comp_d
     AS
-    SELECT 
+    SELECT
         ps.settlement_day_key
         ,ps.operating_day_key
         ,ps.payment_type_key
@@ -149,14 +149,14 @@ COMP_D_VIEW = """
         ,SUM(ps.payment_value)/100 as refund_value
     FROM
         ods.edw_payment_summary ps
-    JOIN 
-        ods.edw_txn_channel_map tcm 
+    JOIN
+        ods.edw_txn_channel_map tcm
         ON
             tcm.txn_source = ps.txn_source
             AND tcm.sales_channel_key = ps.sales_channel_key
             AND tcm.payment_type_key = ps.payment_type_key
-    LEFT JOIN 
-        ods.edw_reason_dimension rd 
+    LEFT JOIN
+        ods.edw_reason_dimension rd
         ON
             rd.reason_key = ps.reason_key
     WHERE
@@ -177,7 +177,7 @@ COMP_D_VIEW = """
 
 WC321_CLEARING_HOUSE = """
     DROP VIEW IF EXISTS ods.wc_321_clearing_house;
-    CREATE OR REPLACE VIEW ods.wc_321_clearing_house 
+    CREATE OR REPLACE VIEW ods.wc_321_clearing_house
     AS
     SELECT
         CCH_STAGE_CATEGORY.CATEGORY_NAME,
@@ -307,7 +307,7 @@ WC321_CLEARING_HOUSE = """
 
 WA160_VIEW = """
     DROP VIEW IF EXISTS ods.wa160;
-    CREATE OR REPLACE VIEW ods.wa160 
+    CREATE OR REPLACE VIEW ods.wa160
     AS
     SELECT
         date(posting_day_key::text) as posting_date,
@@ -329,11 +329,11 @@ WA160_VIEW = """
         coalesce(ut.bankcard_payment_value, 0)::real / 100 as bankcard_payment_value,
         coalesce(ut.merchant_service_fee, 0)::real / 100 as merchant_service_fee,
         (
-            coalesce(ut.pass_cost, 0) 
-            + coalesce(ut.value_changed, 0) 
-            + coalesce(ut.booking_prepaid_value, 0) 
-            + coalesce(ut.benefit_value, 0) 
-            + coalesce(ut.bankcard_payment_value,0) 
+            coalesce(ut.pass_cost, 0)
+            + coalesce(ut.value_changed, 0)
+            + coalesce(ut.booking_prepaid_value, 0)
+            + coalesce(ut.benefit_value, 0)
+            + coalesce(ut.bankcard_payment_value,0)
             + coalesce(ut.merchant_service_fee, 0)
         )::real / 100 as total_use_cost,
         transaction_status_name,
@@ -366,19 +366,19 @@ WA160_VIEW = """
         ods.edw_use_transaction ut
     LEFT JOIN
         ods.edw_fare_product_dimension fpd on ut.fare_prod_key = fpd.fare_prod_key
-    LEFT JOIN 
+    LEFT JOIN
         ods.edw_operator_dimension opd on ut.operator_key = opd.operator_key
-    LEFT JOIN 
+    LEFT JOIN
         ods.edw_card_dimension cardd on ut.card_key = cardd.card_key
-    LEFT JOIN 
+    LEFT JOIN
         ods.edw_ride_type_dimension rtd on ut.ride_type_key = rtd.ride_type_key
-    LEFT JOIN 
+    LEFT JOIN
         ods.edw_txn_status_dimension txnsd on ut.txn_status_key = txnsd.txn_status_key
-    LEFT JOIN 
+    LEFT JOIN
         ods.edw_media_type_dimension mtd on ut.media_type_key = mtd.media_type_key
-    LEFT JOIN 
+    LEFT JOIN
         ods.edw_transit_account_dimension tad on cardd.transit_account_key = tad.transit_account_key
-    LEFT JOIN 
+    LEFT JOIN
         ods.edw_fare_prod_users_list_dimension fpuld on fpuld.fare_prod_users_list_key = fpd.fare_prod_users_list_key
     ;
 """

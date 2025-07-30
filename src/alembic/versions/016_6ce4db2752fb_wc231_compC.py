@@ -12,7 +12,7 @@ from alembic import op
 
 from cubic_loader.utils.postgres import DatabaseManager
 from cubic_loader.qlik.sql_strings.views import WC321_CLEARING_HOUSE
-from cubic_loader.qlik.sql_strings.views import COMP_C_VIEW
+from cubic_loader.qlik.sql_strings.views import WC700_COMP_C_VIEW
 
 # revision identifiers, used by Alembic.
 revision: str = "6ce4db2752fb"
@@ -28,7 +28,7 @@ def upgrade() -> None:
         return
 
     op.execute(WC321_CLEARING_HOUSE)
-    op.execute(COMP_C_VIEW)
+    op.execute(WC700_COMP_C_VIEW)
 
 
 def downgrade() -> None:
