@@ -31,6 +31,7 @@ from cubic_loader.utils.postgres import header_from_csv_gz
 from cubic_loader.qlik.rds_utils import create_tables_from_schema
 from cubic_loader.qlik.rds_utils import create_history_table_partitions
 from cubic_loader.qlik.rds_utils import add_columns_to_table
+from cubic_loader.qlik.rds_utils import convert_cols_to_string
 from cubic_loader.qlik.rds_utils import drop_table
 from cubic_loader.qlik.rds_utils import bulk_delete_from_temp
 from cubic_loader.qlik.rds_utils import bulk_update_from_temp
@@ -252,13 +253,24 @@ class CubicODSQlik:
         ), f"primaryKey changed for table {self.table}"
 
         # check dimenstion change(type, precision or scale)
-        dimension_check = (
-            cdc_schema.join(truth_schema, on="name", how="inner", suffix="_t")
-            .filter(
-                (pl.col("type") != pl.col("type_t"))
-                | (pl.col("precision") != pl.col("precision_t"))
-                | (pl.col("scale") != pl.col("scale_t"))
-            )
+        dimension_check = cdc_schema.join(truth_schema, on="name", how="inner", suffix="_t").filter(
+            (pl.col("type") != pl.col("type_t"))
+            | (pl.col("precision") != pl.col("precision_t"))
+            | (pl.col("scale") != pl.col("scale_t"))
+        )
+
+        # AUTO convert NEW STRING type columns in DB
+        new_string_cols = dimension_check.filter(pl.col("type") == "STRING").get_column("name").to_list()
+        if new_string_cols:
+            self.db.execute(convert_cols_to_string(new_string_cols, self.db_fact_table))
+            current_schema = self.etl_status.last_schema
+            for column in current_schema:
+                if column["name"] in new_string_cols:
+                    column["type"] = "STRING"
+            self.update_status(last_schema=current_schema)
+
+        dimension_print = (
+            dimension_check.filter((pl.col("type") != "STRING"))
             .select(
                 pl.format(
                     "{}(NEW vs OLD, type:{} vs {}, precision:{} vs {}, scale:{} vs {})",
@@ -274,7 +286,7 @@ class CubicODSQlik:
             .get_column("assert_fmt")
             .to_list()
         )
-        assert len(dimension_check) == 0, f"dimension change in {dfm_object} -> {','.join(dimension_check)}"
+        assert len(dimension_print) == 0, f"dimension change in {dfm_object} -> {','.join(dimension_print)}"
 
         add_columns: List[DFMSchemaFields] = cdc_schema.join(truth_schema, on="name", how="anti").to_dicts()  # type: ignore
         if len(add_columns) == 0:
