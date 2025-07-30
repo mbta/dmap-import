@@ -12,10 +12,10 @@ from alembic import op
 import sqlalchemy as sa
 
 from cubic_loader.utils.postgres import DatabaseManager
-from cubic_loader.qlik.sql_strings.views import AD_HOC_VIEW
-from cubic_loader.qlik.sql_strings.views import COMP_A_VIEW
-from cubic_loader.qlik.sql_strings.views import COMP_B_VIEW
-from cubic_loader.qlik.sql_strings.views import COMP_D_VIEW
+from cubic_loader.qlik.sql_strings.views import AD_HOC_PROCESSED_TAPS_VIEW
+from cubic_loader.qlik.sql_strings.views import WC700_COMP_A_VIEW
+from cubic_loader.qlik.sql_strings.views import WC700_COMP_B_VIEW
+from cubic_loader.qlik.sql_strings.views import WC700_COMP_D_VIEW
 
 # revision identifiers, used by Alembic.
 revision: str = "be5284c3563e"
@@ -36,10 +36,10 @@ def upgrade() -> None:
         return
 
     op.execute("CREATE INDEX idx_abp_tap_inserted ON ods.edw_abp_tap (source_inserted_dtm);")
-    op.execute(AD_HOC_VIEW)
-    op.execute(COMP_A_VIEW)
-    op.execute(COMP_B_VIEW)
-    op.execute(COMP_D_VIEW)
+    op.execute(AD_HOC_PROCESSED_TAPS_VIEW)
+    op.execute(WC700_COMP_A_VIEW)
+    op.execute(WC700_COMP_B_VIEW)
+    op.execute(WC700_COMP_D_VIEW)
 
 
 def downgrade() -> None:
