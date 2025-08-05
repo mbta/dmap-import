@@ -226,6 +226,7 @@ class CubicODSQlik:
             "0",
             self.etl_status.last_schema,
         )
+        self.save_status(self.etl_status)
 
     def cdc_verify_schema(self, dfm_object: str) -> None:
         """
@@ -405,6 +406,7 @@ class CubicODSQlik:
             self.cdc_delete(cdc_df, load_table, key_columns)
 
             self.update_status(last_cdc_ts=max(cdc_ts, self.etl_status.last_cdc_ts))
+            self.save_status(self.etl_status)
             logger.log_complete()
 
         except Exception as exception:
