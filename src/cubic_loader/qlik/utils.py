@@ -215,7 +215,6 @@ def qlik_type_to_polars(field: DFMSchemaFields) -> pl.DataType:
         qlik_type = "CHANGE_SEQ"
 
     exact_type_matches = {
-        "CHANGE_SEQ": pl.Decimal(35, 0),
         "REAL4": pl.Float32(),
         "REAL8": pl.Float64(),
         "BOOLEAN": pl.Boolean(),
@@ -252,7 +251,7 @@ def polars_schema_from_dfm(dfm_path: str) -> pl.Schema:
     return pl.Schema({col["name"].lower(): qlik_type_to_polars(col) for col in dfm_schema_to_json(dfm_path)})
 
 
-def dataframe_from_merged_csv(csv_path: str, dfm_path: str) -> pl.DataFrame:
+def lf_from_merged_csv(csv_path: str, dfm_path: str) -> pl.LazyFrame:
     """
     load csv_path into dataframe with correct types
     types will be inferred from dfm_path (one .csv.gz file from csv_path)
@@ -265,17 +264,16 @@ def dataframe_from_merged_csv(csv_path: str, dfm_path: str) -> pl.DataFrame:
     :return: polars dataframe of csv_path file
     """
     schema = polars_schema_from_dfm(dfm_path)
-    df = pl.scan_csv(csv_path, schema=schema).filter(pl.col("header__change_oper").ne("B")).collect()
-    return df
+    return pl.scan_csv(csv_path, schema=schema).filter(pl.col("header__change_oper").ne("B"))
 
 
-def key_column_join_type(df: pl.DataFrame, key_columns: List[str]) -> List[Tuple[str, str]]:
+def key_column_join_type(lf: pl.LazyFrame, key_columns: List[str]) -> List[Tuple[str, str]]:
     """
     Check for NULL counts in key_columns to determine if `=` or `IS NOT DISTINCT FROM` can be used
     """
     return_list = []
     for column in key_columns:
-        if df.get_column(column).null_count() > 0:
+        if lf.select(column).null_count().collect().item() > 0:
             return_list.append(("IS NOT DISTINCT FROM", column))
         else:
             return_list.append(("=", column))

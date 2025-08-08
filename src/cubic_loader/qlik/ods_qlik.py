@@ -50,7 +50,7 @@ from cubic_loader.qlik.utils import merge_cdc_csv_gz_files
 from cubic_loader.qlik.utils import dfm_schema_to_json
 from cubic_loader.qlik.utils import status_schema_to_df
 from cubic_loader.qlik.utils import dfm_schema_to_df
-from cubic_loader.qlik.utils import dataframe_from_merged_csv
+from cubic_loader.qlik.utils import lf_from_merged_csv
 from cubic_loader.qlik.utils import s3_list_cdc_gz_objects
 from cubic_loader.utils.logger import ProcessLogger
 
@@ -299,17 +299,17 @@ class CubicODSQlik:
             current_schema.append(column)
         self.update_status(last_schema=current_schema)
 
-    def cdc_update(self, cdc_df: pl.DataFrame, tmp_table: str, key_columns: List[str]) -> None:
+    def cdc_update(self, cdc_lf: pl.LazyFrame, tmp_table: str, key_columns: List[str]) -> None:
         """
         Perform UPDATE from cdc dataframe
         """
         # Perform UPDATE Operations on fact table for each column indivduallly
-        for update_col in cdc_df.columns:
+        for update_col in cdc_lf.collect_schema().names():
             if update_col in key_columns or update_col in CDC_COLUMNS:
                 continue
 
-            update_df = (
-                cdc_df.filter(
+            update_lf = (
+                cdc_lf.filter(
                     pl.col("header__change_oper").eq("U"),
                     pl.col(update_col).is_not_null(),
                 )
@@ -317,54 +317,54 @@ class CubicODSQlik:
                 .unique(key_columns, keep="first")
                 .select(key_columns + [update_col])
             )
-            if update_df.shape[0] == 0:
+            if update_lf.select(pl.len()).collect().item() == 0:
                 continue
 
             with tempfile.TemporaryDirectory() as tmp_dir:
                 update_csv_path = os.path.join(tmp_dir, "update.csv")
-                update_df.write_csv(update_csv_path, quote_style="necessary")
+                update_lf.sink_csv(update_csv_path, quote_style="necessary")
                 self.db.truncate_table(tmp_table)
                 remote_csv_gz_copy(update_csv_path, tmp_table)
 
-            op_and_key = key_column_join_type(update_df, key_columns)
+            op_and_key = key_column_join_type(update_lf, key_columns)
             update_q = bulk_update_from_temp(self.db_fact_table, update_col, op_and_key)
             self.db.execute(update_q)
 
-    def cdc_delete(self, cdc_df: pl.DataFrame, tmp_table: str, key_columns: List[str]) -> None:
+    def cdc_delete(self, cdc_lf: pl.LazyFrame, tmp_table: str, key_columns: List[str]) -> None:
         """
         Perform DELETE from cdc dataframe
         """
-        delete_df = (
-            cdc_df.sort(by="header__change_seq", descending=True)
+        delete_lf = (
+            cdc_lf.sort(by="header__change_seq", descending=True)
             .unique(key_columns, keep="first")
             .filter(pl.col("header__change_oper").eq("D"))
             .select(key_columns)
         )
-        if delete_df.shape[0] == 0:
+        if delete_lf.select(pl.len()).collect().item() == 0:
             return
 
-        op_and_key = key_column_join_type(delete_df, key_columns)
+        op_and_key = key_column_join_type(delete_lf, key_columns)
         delete_q = bulk_delete_from_temp(self.db_fact_table, op_and_key)
 
         with tempfile.TemporaryDirectory() as tmp_dir:
             delete_csv_path = os.path.join(tmp_dir, "delete.csv")
-            delete_df.write_csv(delete_csv_path, quote_style="necessary")
+            delete_lf.sink_csv(delete_csv_path, quote_style="necessary")
             self.db.truncate_table(tmp_table)
             remote_csv_gz_copy(delete_csv_path, tmp_table)
         self.db.execute(delete_q)
 
-    def cdc_insert(self, cdc_df: pl.DataFrame, tmp_table: str) -> None:
+    def cdc_insert(self, cdc_lf: pl.LazyFrame, tmp_table: str) -> None:
         """
         Perform INSERT from cdc dataframe
         """
-        insert_df = cdc_df.filter(pl.col("header__change_oper").eq("I")).drop(CDC_COLUMNS)
-        if insert_df.shape[0] == 0:
+        insert_lf = cdc_lf.filter(pl.col("header__change_oper").eq("I")).drop(CDC_COLUMNS)
+        if insert_lf.select(pl.len()).collect().item() == 0:
             return
 
-        insert_q = bulk_insert_from_temp(self.db_fact_table, tmp_table, insert_df.columns)
+        insert_q = bulk_insert_from_temp(self.db_fact_table, tmp_table, insert_lf.collect_schema().names())
         with tempfile.TemporaryDirectory() as tmp_dir:
             insert_path = os.path.join(tmp_dir, "insert.csv")
-            insert_df.write_csv(insert_path, quote_style="necessary")
+            insert_lf.sink_csv(insert_path, quote_style="necessary")
             self.db.truncate_table(tmp_table)
             remote_csv_gz_copy(insert_path, tmp_table)
         self.db.execute(insert_q)
@@ -392,18 +392,18 @@ class CubicODSQlik:
 
             cdc_ts = merge_cdc_csv_gz_files(load_folder)
             self.cdc_verify_schema(dfm_object)
-            cdc_df = dataframe_from_merged_csv(merge_csv, dfm_object)
+            cdc_lf = lf_from_merged_csv(merge_csv, dfm_object)
 
             # Load records into _history table
             self.db.truncate_table(load_table)
             remote_csv_gz_copy(merge_csv, load_table)
-            self.db.execute(bulk_insert_from_temp(self.db_history_table, load_table, cdc_df.columns))
+            self.db.execute(bulk_insert_from_temp(self.db_history_table, load_table, cdc_lf.collect_schema().names()))
 
-            self.cdc_insert(cdc_df, load_table)
+            self.cdc_insert(cdc_lf, load_table)
 
-            self.cdc_update(cdc_df, load_table, key_columns)
+            self.cdc_update(cdc_lf, load_table, key_columns)
 
-            self.cdc_delete(cdc_df, load_table, key_columns)
+            self.cdc_delete(cdc_lf, load_table, key_columns)
 
             self.update_status(last_cdc_ts=max(cdc_ts, self.etl_status.last_cdc_ts))
             self.save_status(self.etl_status)
