@@ -67,7 +67,7 @@ class UseTransactionalLocation(SqlBase):
     transit_mode_name = sa.Column(sa.String(), nullable=True)
     transit_mode_desc = sa.Column(sa.String(), nullable=True)
     array_position = sa.Column(sa.String(), nullable=True)
-    fare_prod_id = sa.Column(sa.BigInteger, nullable=True)
+    fare_prod_id = sa.Column(sa.String(), nullable=True)
     fare_prod_name = sa.Column(sa.String(), nullable=True)
     fare_prod_desc = sa.Column(sa.String(), nullable=True)
     fare_prod_rider_class_id = sa.Column(sa.BigInteger, nullable=True)
