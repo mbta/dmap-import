@@ -1,24 +1,22 @@
-version: "3"
-
 services:
   cubic_local_rds:
-    container_name: cubic_local_rds 
-    image: postgres:15.4
-    shm_size: '2gb'
+    container_name: cubic_local_rds
+    image: postgres:15
+    shm_size: "2gb"
     env_file: .env
     environment:
       POSTGRES_DB: ${DB_NAME}
       POSTGRES_PASSWORD: ${DB_PASSWORD}
     ports:
       - "5432:5432"
-    command: [ "postgres", "-c", "log_statement=all" ]
+    command: ["postgres", "-c", "log_statement=all"]
 
   cubic_loader:
     container_name: cubic_loader
     env_file: .env
     build: .
     depends_on:
-      - cubic_local_rds 
+      - cubic_local_rds
     working_dir: /dmap_import
     volumes:
       # map credentials to be used by boto3, read-only
