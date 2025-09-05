@@ -14,9 +14,9 @@ brew install postgresql
 * run `poetry install` to install python dependencies
 * run `cp .env.template .env` and fill out any missing environment variables
 * run `docker-compose build` to build the docker images for local testing
-    * run `docker-compose up dmap_local_rds` to stand up a local postgres db
+    * run `docker-compose up cubic_local_rds` to stand up a local postgres db
         * this imnage could be used when running pytest
-    * run `docker-compose up dmap_import` to run the importer application
+    * run `docker-compose up cubic_import` to run the importer application
 
 ### Outside of Docker
 
