@@ -11,6 +11,7 @@ from cubic_loader.dmap.schemas.agg_daily_transfers_route import AggDailyTransfer
 from cubic_loader.dmap.schemas.agg_daily_transfers_station import AggDailyTransfersStation
 from cubic_loader.dmap.schemas.agg_hourly_entry_exit_count import AggHourlyEntryExitCount
 from cubic_loader.dmap.schemas.agg_total_boardings_month_mode import AggTotalBoardingsMonthMode
+from cubic_loader.dmap.schemas.citation import Citation
 from cubic_loader.dmap.schemas.device_event import DeviceEvents
 from cubic_loader.dmap.schemas.sale_transaction import SaleTransaction
 from cubic_loader.dmap.schemas.use_transaction_location import UseTransactionalLocation
@@ -85,5 +86,9 @@ def produce_job_list() -> List[CopyJob]:
         {
             "url": f"{base_url}/datasetcontrolleduserapi/transactional/device_event",
             "table": DeviceEvents,
+        },
+        {
+            "url": f"{base_url}/datasetcontrolleduserapi/transactional/citation",
+            "table": Citation,
         },
     ]

@@ -162,18 +162,16 @@ def get_api_results(url: str, db_manager: DatabaseManager) -> List[ApiResult]:
                     raise AttributeError("No Results object recieved.")
                 break
 
-            except Exception as _:
+            except Exception as e:
                 if retry_count < max_retries:
                     # wait and try again
                     time.sleep(15)
+
+                # bind exception to local variable
+                response_exception = e
         else:
-            api_results_log.add_metadata(
-                status_code=response.status_code,
-                response=response.text,
-            )
-            exception = requests.HTTPError(response.text)
-            api_results_log.log_failure(exception)
-            raise exception
+            api_results_log.log_failure(response_exception)
+            raise response_exception
 
         if len(json_response["results"]) == 0:
             break

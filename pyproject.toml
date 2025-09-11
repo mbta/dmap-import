@@ -3,9 +3,7 @@ name = "cubic_loader"
 version = "0.1.0"
 description = "MBTA Application for Archiving Cubic Data in Postgres"
 authors = [
-    "MBTA CTD <developer@mbta.com>",
-    "Ryan Rymarczyk <rrymarczyk@mbta.com>",
-    "Mike Zappitello <mzappitello@mbta.com>"
+    "MBTA TID <developer@mbta.com>"
 ]
 
 [tool.poetry.dependencies]
@@ -60,5 +58,5 @@ disable = [
 good-names = ["e", "i", "s"]
 max-line-length = 120
 min-similarity-lines = 10
-# ignore the alembic directory. 
+# ignore the alembic directory.
 ignore-paths = ["^src/alembic/.*$"]
