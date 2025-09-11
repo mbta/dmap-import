@@ -9,7 +9,7 @@ Import DMAP data into a PostgreSQL database
 # for docker
 brew install docker docker-compose docker-buildx
 
-brew install asdf poetry
+brew install asdf
 ```
 * run `asdf install` to install tools via asdf
 * run `poetry config virtualenvs.in-project true` to install venv in folder
