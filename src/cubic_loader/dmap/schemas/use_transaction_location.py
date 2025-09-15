@@ -158,3 +158,4 @@ class UseTransactionalLocation(SqlBase):
     reference_notes = sa.Column(sa.String(), nullable=True)
     multi_ride_id = sa.Column(sa.BigInteger, nullable=True)
     token_id = sa.Column(sa.BigInteger, nullable=True)
+    validator_interface = sa.Column(sa.String(), nullable=True)
