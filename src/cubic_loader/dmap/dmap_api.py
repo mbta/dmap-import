@@ -97,6 +97,7 @@ def download_from_url(url: str, local_path: str) -> bool:
     return True
 
 
+# pylint: disable=too-many-locals
 def get_api_results(url: str, db_manager: DatabaseManager) -> List[ApiResult]:
     """
     Execute GET request against CUBIC API URL using last_updated param to
@@ -149,6 +150,8 @@ def get_api_results(url: str, db_manager: DatabaseManager) -> List[ApiResult]:
     api_results = []
     for limit_offset in range(10):
         params["offset"] = str(int(params["limit"]) * limit_offset)
+
+        response_exceptions: list = []
         for retry_count in range(max_retries + 1):
             api_results_log.add_metadata(retry_count=retry_count)
             try:
@@ -162,18 +165,19 @@ def get_api_results(url: str, db_manager: DatabaseManager) -> List[ApiResult]:
                     raise AttributeError("No Results object recieved.")
                 break
 
-            except Exception as _:
+            except Exception as e:
                 if retry_count < max_retries:
                     # wait and try again
                     time.sleep(15)
+
+                # add exception to list
+                response_exceptions.append(e)
         else:
-            api_results_log.add_metadata(
-                status_code=response.status_code,
-                response=response.text,
-            )
-            exception = requests.HTTPError(response.text)
-            api_results_log.log_failure(exception)
-            raise exception
+            if response_exceptions:
+                for exception in response_exceptions:
+                    api_results_log.log_failure(exception)
+
+                raise ExceptionGroup("retry_errors", response_exceptions)
 
         if len(json_response["results"]) == 0:
             break

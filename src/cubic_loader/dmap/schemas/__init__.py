@@ -28,6 +28,7 @@ from .agg_daily_transfers_route import AggDailyTransfersRoute
 from .agg_daily_transfers_station import AggDailyTransfersStation
 from .agg_hourly_entry_exit_count import AggHourlyEntryExitCount
 from .agg_total_boardings_month_mode import AggTotalBoardingsMonthMode
+from .citation import Citation
 from .device_event import DeviceEvents
 from .sale_transaction import SaleTransaction
 from .use_transaction_location import UseTransactionalLocation
