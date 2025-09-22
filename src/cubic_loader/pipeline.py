@@ -51,8 +51,9 @@ def start_qlik_load() -> None:
     os.environ["SERVICE_NAME"] = "qlik_loader"
 
     for cubic_table in CUBIC_ODS_TABLES:
+        log = ProcessLogger("CubicODSQlik", cubic_table=cubic_table)
+
         try:
-            log = ProcessLogger("CubicODSQlik", cubic_table=cubic_table)
             qlik_table = CubicODSQlik(cubic_table)
             proc = get_context("spawn").Process(target=qlik_table.run_etl)
             proc.start()
