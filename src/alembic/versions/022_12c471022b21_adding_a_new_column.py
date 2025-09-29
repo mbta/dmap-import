@@ -14,8 +14,8 @@ from cubic_loader.utils.postgres import DatabaseManager
 from cubic_loader.qlik.sql_strings.views import WA160_VIEW
 
 # revision identifiers, used by Alembic.
-revision: str = '12c471022b21'
-down_revision: Union[str, None] = '07db86066661'
+revision: str = "12c471022b21"
+down_revision: Union[str, None] = "07db86066661"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
