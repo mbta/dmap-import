@@ -372,7 +372,7 @@ WA160_VIEW = """
     LEFT JOIN
         ods.edw_operator_dimension opd on ut.operator_key = opd.operator_key
     LEFT JOIN
-        cubic_ods.edw_member_dimension emd on ut.transit_account_id = emd.transit_account_id
+        ods.edw_member_dimension emd on ut.transit_account_id = emd.transit_account_id
     LEFT JOIN
         ods.edw_card_dimension cardd on ut.card_key = cardd.card_key
     LEFT JOIN
