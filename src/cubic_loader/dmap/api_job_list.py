@@ -9,7 +9,6 @@ from cubic_loader.dmap.schemas.agg_daily_fareprod_station import AggDailyFarepro
 from cubic_loader.dmap.schemas.agg_daily_fareprod import AggDailyFareprod
 from cubic_loader.dmap.schemas.agg_daily_transfers_route import AggDailyTransfersRoute
 from cubic_loader.dmap.schemas.agg_daily_transfers_station import AggDailyTransfersStation
-from cubic_loader.dmap.schemas.agg_hourly_entry_exit_count import AggHourlyEntryExitCount
 from cubic_loader.dmap.schemas.agg_total_boardings_month_mode import AggTotalBoardingsMonthMode
 from cubic_loader.dmap.schemas.citation import Citation
 from cubic_loader.dmap.schemas.device_event import DeviceEvents
@@ -62,10 +61,6 @@ def produce_job_list() -> List[CopyJob]:
         {
             "url": f"{base_url}/datasetpublicusersapi/aggregations/agg_daily_transfers_station",
             "table": AggDailyTransfersStation,
-        },
-        {
-            "url": f"{base_url}/datasetpublicusersapi/aggregations/agg_hourly_entry_exit_count",
-            "table": AggHourlyEntryExitCount,
         },
         {
             "url": f"{base_url}/datasetpublicusersapi/aggregations/agg_total_boardings_month_mode",
