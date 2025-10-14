@@ -15,8 +15,8 @@ from cubic_loader.qlik.sql_strings.views import AD_HOC_JOURNAL_ENTRIES
 
 
 # revision identifiers, used by Alembic.
-revision: str = '7ac3ef57d137'
-down_revision: Union[str, None] = '12c471022b21'
+revision: str = "7ac3ef57d137"
+down_revision: Union[str, None] = "12c471022b21"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
