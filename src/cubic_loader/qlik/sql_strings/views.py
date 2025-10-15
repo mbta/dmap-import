@@ -405,7 +405,7 @@ AD_HOC_JOURNAL_ENTRIES = """
     split_part(description, '|', 4) as operating_date,
     split_part(description, '|', 5) as fare_instrument_id
     FROM
-        cubic_ods.edw_fnp_general_jrnl_account_entry
+        ods.edw_fnp_general_jrnl_account_entry
     WHERE
         ledger_name = 'MBTA'
     ;
