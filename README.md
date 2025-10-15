@@ -36,8 +36,23 @@ brew install asdf
 
 ### Alembic
 
-To create new migration:
+#### To create new migration:
+1. run:
 ```sh
 poetry run alembic revision -m "adding a new column"
-# [optional] rename generated file so as to sort migrations by name by prepending '0xx_'
+```
+2. Rename generated file so as to sort migrations by name by prepending '0xx_'
+
+#### To apply migrations:
+```
+poetry run alembic upgrade head
+```
+
+### Deploying changes
+New changes are automatically deployed to staging when changes are merged into main [workflow](https://github.com/mbta/dmap-import/actions/workflows/deploy_to_staging.yaml).
+
+To deploy changes to prod, you must add a tag, which will automatically trigger the deployment. You cannot manually trigger this workflow. To add a tag to the current state, figure out the new tag name per the [guidelines](https://www.notion.so/mbta-downtown-crossing/Module-Versioning-Overview-1f4f5d8d11ea80a28590f94ed28fb18e#1f4f5d8d11ea80a28590f94ed28fb18e) and run:
+```
+git tag v1.3.22 # or your tag name
+git push origin --tags
 ```
