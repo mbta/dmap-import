@@ -39,7 +39,7 @@ brew install asdf
 #### To create new migration:
 1. run:
 ```sh
-alembic revision -m "adding a new column"
+poetry run alembic revision -m "adding a new column"
 ```
 2. Rename generated file so as to sort migrations by name by prepending '0xx_'
 
