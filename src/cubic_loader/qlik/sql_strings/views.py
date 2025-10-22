@@ -175,9 +175,9 @@ WC700_COMP_D_VIEW = """
 """
 
 
-WC321_CLEARING_HOUSE = """
-    DROP VIEW IF EXISTS ods.wc_321_clearing_house;
-    CREATE OR REPLACE VIEW ods.wc_321_clearing_house
+WC231_CLEARING_HOUSE = """
+    DROP VIEW IF EXISTS ods.wc_231_clearing_house;
+    CREATE OR REPLACE VIEW ods.wc_231_clearing_house
     AS
     SELECT
         CCH_STAGE_CATEGORY.CATEGORY_NAME,
