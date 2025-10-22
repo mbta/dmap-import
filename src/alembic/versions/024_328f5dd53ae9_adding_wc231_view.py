@@ -12,6 +12,7 @@ from alembic import op
 
 from cubic_loader.utils.postgres import DatabaseManager
 from cubic_loader.qlik.sql_strings.views import WC231_PASS_ID_ADHOC
+from cubic_loader.qlik.sql_strings.views import WC231_CLEARING_HOUSE
 
 
 # revision identifiers, used by Alembic.
@@ -28,8 +29,10 @@ def upgrade() -> None:
         return
 
     op.execute(WC231_PASS_ID_ADHOC)
+    op.execute(WC231_CLEARING_HOUSE)
 
 
 def downgrade() -> None:
     op.execute("DROP VIEW IF EXISTS ods.WC231_PASS_ID_ADHOC;")
+    op.execute("DROP VIEW IF EXISTS ods.WC231_CLEARING_HOUSE;")
 
