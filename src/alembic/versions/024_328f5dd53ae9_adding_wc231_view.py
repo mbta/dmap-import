@@ -16,8 +16,8 @@ from cubic_loader.qlik.sql_strings.views import WC231_CLEARING_HOUSE
 
 
 # revision identifiers, used by Alembic.
-revision: str = 'd09f890f2828'
-down_revision: Union[str, None] = '7ac3ef57d137'
+revision: str = "d09f890f2828"
+down_revision: Union[str, None] = "7ac3ef57d137"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
@@ -35,4 +35,3 @@ def upgrade() -> None:
 def downgrade() -> None:
     op.execute("DROP VIEW IF EXISTS ods.WC231_PASS_ID_ADHOC;")
     op.execute("DROP VIEW IF EXISTS ods.WC231_CLEARING_HOUSE;")
-
