@@ -137,7 +137,14 @@ def get_api_results(url: str, db_manager: DatabaseManager) -> List[ApiResult]:
     # last_updated if last_update_dt available from ApiMetadata table
     # apikey based on contents of url endpoint string
     headers = {"apikey": apikey_from_environment(url)}
-    params = {"limit": "100"}
+
+    # Hotfix for UseTransactionalLocation dataset
+    if url.endswith('use_transaction_location'):
+        min_start_date = "2025-12-01"
+        params = {"limit": "100", "start_date": min_start_date}
+    else:
+        params = {"limit": "100"}
+
     if db_result:
         last_updated_dt: datetime.datetime = db_result[0]["last_updated"]
         params["last_updated"] = (last_updated_dt.date() - datetime.timedelta(days=1)).strftime("%Y-%m-%d")
