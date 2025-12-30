@@ -98,7 +98,7 @@ def download_from_url(url: str, local_path: str) -> bool:
 
 
 # pylint: disable=too-many-locals
-def get_api_results(url: str, db_manager: DatabaseManager) -> List[ApiResult]: # pylint: disable=R0912
+def get_api_results(url: str, db_manager: DatabaseManager) -> List[ApiResult]:  # pylint: disable=R0912
     """
     Execute GET request against CUBIC API URL using last_updated param to
     filter results based on last_updated timestamp from ApiMetadata DB table
