@@ -95,7 +95,7 @@ def main() -> None:
 
     start_dmap()
 
-    start_qlik_load()
+    # start_qlik_load()
 
 
 if __name__ == "__main__":
