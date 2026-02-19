@@ -18,7 +18,7 @@ brew install asdf
 * run `docker-compose build` to build the docker images for local testing
     * run `docker-compose up cubic_local_rds` to stand up a local postgres db
         * this imnage could be used when running pytest
-    * run `docker-compose up cubic_import` to run the importer application
+    * run `docker-compose up cubic_loader` to run the importer application
 
 ### Outside of Docker
 
