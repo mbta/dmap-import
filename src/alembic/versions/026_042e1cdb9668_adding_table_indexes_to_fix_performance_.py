@@ -5,14 +5,15 @@ Revises: 0fd250676519
 Create Date: 2026-02-18 16:56:08.411713
 
 """
+
 from typing import Sequence, Union
 
 from alembic import op
 from cubic_loader.utils.postgres import DatabaseManager
 
 # revision identifiers, used by Alembic.
-revision: str = '042e1cdb9668'
-down_revision: Union[str, None] = '0fd250676519'
+revision: str = "042e1cdb9668"
+down_revision: Union[str, None] = "0fd250676519"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
