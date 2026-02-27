@@ -106,4 +106,5 @@ CUBIC_ODS_TABLES = [
     #    "EDW.FRM_CRDB_CHGBK_MASTER", # Temporarily disabled, as not part of a view
     #    "EDW.BE_INVOICE_STATUS_DIMENSION", # Temporarily disabled, as not part of a view
     #    "EDW.BNFT_INVOICE_STATUS_DIMENSION", # Temporarily disabled, as not part of a view
+    "EDW.EMPLOYEE_DIMENSION",
 ]
