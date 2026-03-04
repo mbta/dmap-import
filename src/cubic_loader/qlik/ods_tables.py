@@ -1,6 +1,6 @@
 CUBIC_ODS_TABLES = [
     # WA160
-    #    "EDW.DATE_DIMENSION", # Temporarily disabled, as not part of a view
+    "EDW.DATE_DIMENSION",
     "EDW.FARE_PROD_USERS_LIST_DIMENSION",
     "EDW.FARE_PRODUCT_DIMENSION",
     "EDW.MEDIA_TYPE_DIMENSION",
@@ -11,17 +11,17 @@ CUBIC_ODS_TABLES = [
     "EDW.TRANSIT_ACCOUNT_DIMENSION",
     "EDW.TXN_STATUS_DIMENSION",
     "EDW.CARD_DIMENSION",
-    #    "EDW.DEVICE_DIMENSION", # Temporarily disabled, as not part of a view
+    "EDW.DEVICE_DIMENSION",
     "EDW.USE_TRANSACTION",
     # COMP B
     "EDW.TXN_CHANNEL_MAP",
     "EDW.CCH_AFC_TRANSACTION",
     #    "EDW.PATRON_TRIP", # Temporarily disabled, as not part of a view
     #    "EDW.TRIP_PAYMENT", # Temporarily disabled, as not part of a view
-    #    "EDW.SALE_TRANSACTION", # Temporarily disabled, as not part of a view
+    "EDW.SALE_TRANSACTION",
     "EDW.PAYMENT_TYPE_DIMENSION",
     # "EDW.TRANSACTION_HISTORY", # table is taking days to load, blocking other tables from loading
-    #    "EDW.FARE_REVENUE_REPORT_SCHEDULE", # Temporarily disabled, as not part of a view  # addendum support
+    "EDW.FARE_REVENUE_REPORT_SCHEDULE",  # addendum support
     # FMIS
     "EDW.FNP_GENERAL_JRNL_ACCOUNT_ENTRY",
     "EDW.PAYMENT_SUMMARY",
@@ -84,12 +84,12 @@ CUBIC_ODS_TABLES = [
     #    "EDW.TOKEN_HISTORY", # Temporarily disabled, as not part of a view
     #    "EDW.FRM_CRDB_RECON_SYSCONF_ACQCONF", # Temporarily disabled, as not part of a view
     #    "EDW.TRANSIT_ACCOUNT_BALANCE", # Temporarily disabled, as not part of a view
-    #    "EDW.CUSTOMER_DIMENSION", # Temporarily disabled, as not part of a view
-    #    "EDW.PATRON_ORDER", # Temporarily disabled, as not part of a view
-    #    "EDW.PATRON_ORDER_LINE_ITEM", # Temporarily disabled, as not part of a view
-    #    "EDW.PATRON_ORDER_PAYMENT", # Temporarily disabled, as not part of a view
+    "EDW.CUSTOMER_DIMENSION",
+    "EDW.PATRON_ORDER",
+    "EDW.PATRON_ORDER_LINE_ITEM",
+    "EDW.PATRON_ORDER_PAYMENT",
     #    "EDW.READ_TRANSACTION", # Temporarily disabled, as not part of a view
-    #    "EDW.SALE_TXN_PAYMENT", # Temporarily disabled, as not part of a view
+    "EDW.SALE_TXN_PAYMENT",
     #    "EDW.SERVICE_TYPE_DIMENSION", # Temporarily disabled, as not part of a view
     #    "EDW.SVN_INCIDENT", # Temporarily disabled, as not part of a view
     #    "EDW.UNSETTLED_CCA_CASH_COUNT", # Temporarily disabled, as not part of a view
