@@ -16,11 +16,11 @@ CUBIC_ODS_TABLES = [
     # COMP B
     "EDW.TXN_CHANNEL_MAP",
     "EDW.CCH_AFC_TRANSACTION",
-    "EDW.PATRON_TRIP", # Temporarily disabled, as not part of a view
-    "EDW.TRIP_PAYMENT", # Temporarily disabled, as not part of a view
+    "EDW.PATRON_TRIP",  # Temporarily disabled, as not part of a view
+    "EDW.TRIP_PAYMENT",  # Temporarily disabled, as not part of a view
     "EDW.SALE_TRANSACTION",
     "EDW.PAYMENT_TYPE_DIMENSION",
-    "EDW.TRANSACTION_HISTORY", # table is taking days to load, blocking other tables from loading
+    "EDW.TRANSACTION_HISTORY",  # table is taking days to load, blocking other tables from loading
     "EDW.FARE_REVENUE_REPORT_SCHEDULE",  # addendum support
     # FMIS
     "EDW.FNP_GENERAL_JRNL_ACCOUNT_ENTRY",
@@ -70,7 +70,7 @@ CUBIC_ODS_TABLES = [
     #    "EDW.ABP_REPROCESS_LOG", # Temporarily disabled, as not part of a view
     # WC320
     #    "EDW.FRM_SRC_CRDB_ACQUIRER_CHGBK", # Temporarily disabled, as not part of a view
-    "EDW.TRAVEL_MODE_DIMENSION", # Temporarily disabled, as not part of a view
+    "EDW.TRAVEL_MODE_DIMENSION",  # Temporarily disabled, as not part of a view
     #    "EDW.PAL_CONFIRMATION", # Temporarily disabled, as not part of a view
     #    "EDW.JOURNAL_ENTRY", # Temporarily disabled, as not part of a view
     # no association to need indicated
