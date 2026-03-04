@@ -21,7 +21,7 @@ CUBIC_ODS_TABLES = [
     "EDW.SALE_TRANSACTION",
     "EDW.PAYMENT_TYPE_DIMENSION",
     # "EDW.TRANSACTION_HISTORY", # table is taking days to load, blocking other tables from loading
-    "EDW.FARE_REVENUE_REPORT_SCHEDULE", # addendum support
+    "EDW.FARE_REVENUE_REPORT_SCHEDULE",  # addendum support
     # FMIS
     "EDW.FNP_GENERAL_JRNL_ACCOUNT_ENTRY",
     "EDW.PAYMENT_SUMMARY",
