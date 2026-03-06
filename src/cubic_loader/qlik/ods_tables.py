@@ -18,7 +18,7 @@ CUBIC_ODS_TABLES = [
     "EDW.CCH_AFC_TRANSACTION",
     #    "EDW.PATRON_TRIP", # Temporarily disabled, as not part of a view
     #    "EDW.TRIP_PAYMENT", # Temporarily disabled, as not part of a view
-    "EDW.SALE_TRANSACTION",
+    #"EDW.SALE_TRANSACTION",
     "EDW.PAYMENT_TYPE_DIMENSION",
     # "EDW.TRANSACTION_HISTORY", # table is taking days to load, blocking other tables from loading
     "EDW.FARE_REVENUE_REPORT_SCHEDULE",  # addendum support
