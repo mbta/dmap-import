@@ -109,6 +109,7 @@ CUBIC_ODS_TABLES = [
     "EDW.EMPLOYEE_DIMENSION",
     "EDW.SVN_TASK",
     "EDW.FARE_PRODUCT_INSTANCE",
+    "EDW.ACCOUNT_BALANCE_BY_DAY",
     # EDW.TRANSACTION_HISTORY is large and should be run last to avoid blocking other tables
     # "EDW.TRANSACTION_HISTORY",
 ]
