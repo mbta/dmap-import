@@ -570,6 +570,7 @@ AD_HOC_JOURNAL_ENTRIES = """
     ;
 """
 
+# This is no longer used but is left here to support running migrations.
 WC231_PASS_ID_ADHOC = """
     DROP VIEW IF EXISTS ods.wc231_pass_id_adhoc;
     CREATE VIEW ods.wc231_pass_id_adhoc
