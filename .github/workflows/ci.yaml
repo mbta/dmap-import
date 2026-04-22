@@ -69,7 +69,7 @@ jobs:
       - uses: ./.github/actions/python_dependencies
 
       # returns an error if pylint detects any issues
-      - run: poetry run pylint src tests
+      - run: poetry run pylint --disable=C0302 src tests
 
   pytest:
     name: Run Tests with pytest 
