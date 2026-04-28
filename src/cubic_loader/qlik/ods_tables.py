@@ -70,7 +70,7 @@ CUBIC_ODS_TABLES = [
     # WC320
     #    "EDW.FRM_SRC_CRDB_ACQUIRER_CHGBK", # Temporarily disabled, as not part of a view
     "EDW.TRAVEL_MODE_DIMENSION",
-    #    "EDW.PAL_CONFIRMATION", # Temporarily disabled, as not part of a view
+    "EDW.PAL_CONFIRMATION",
     #    "EDW.JOURNAL_ENTRY", # Temporarily disabled, as not part of a view
     # no association to need indicated
     #    "EDW.DEVICE_END_OF_DAY_MSG_COUNT", # Temporarily disabled, as not part of a view
