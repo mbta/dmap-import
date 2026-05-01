@@ -1604,7 +1604,7 @@ SELECT
     recovery_txn_type,
     incident_id,
     supervening_event,
-    round((recovery_calculation_amount / 100), 2) AS recovery_calculation_amount,
+    round((recovery_calculation_amount::numeric / 100), 2) AS recovery_calculation_amount,
     operating_day_key,
     settlement_day_key,
     posting_day_key
@@ -1699,7 +1699,7 @@ SELECT
     recovery_txn_type,
     incident_id,
     supervening_event,
-    round((recovery_calculation_amount / 100), 2) AS recovery_calculation_amount,
+    round((recovery_calculation_amount::numeric / 100), 2) AS recovery_calculation_amount,
     operating_day_key,
     settlement_day_key,
     posting_day_key
