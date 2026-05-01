@@ -5,6 +5,7 @@ Revises: f5ded62bd362
 Create Date: 2026-05-01 11:07:38.070903
 
 """
+
 from typing import Sequence, Union
 
 from alembic import op
@@ -13,8 +14,8 @@ from cubic_loader.utils.postgres import DatabaseManager
 from cubic_loader.qlik.sql_strings.views import FAREREV_RECOVERY_TXN_C, FAREREV_RECOVERY_TXN_A
 
 # revision identifiers, used by Alembic.
-revision: str = '36f89551fe75'
-down_revision: Union[str, None] = 'f5ded62bd362'
+revision: str = "36f89551fe75"
+down_revision: Union[str, None] = "f5ded62bd362"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
