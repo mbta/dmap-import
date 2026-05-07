@@ -139,11 +139,13 @@ def get_api_results(url: str, db_manager: DatabaseManager) -> List[ApiResult]:  
     headers = {"apikey": apikey_from_environment(url)}
 
     # Hotfix for UseTransactionalLocation dataset
-    if url.endswith("use_transaction_location"):
-        min_start_date = "2025-12-01"
-        params = {"limit": "100", "start_date": min_start_date}
-    else:
-        params = {"limit": "100"}
+    # if url.endswith("use_transaction_location"):
+    #     min_start_date = "2025-12-01"
+    #     params = {"limit": "100", "start_date": min_start_date}
+    # else:
+    #     params = {"limit": "100"}
+
+    params = {"limit": "100"}
 
     if db_result:
         last_updated_dt: datetime.datetime = db_result[0]["last_updated"]
