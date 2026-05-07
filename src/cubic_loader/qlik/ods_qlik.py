@@ -317,18 +317,33 @@ class CubicODSQlik:
                 .unique(key_columns, keep="first")
                 .select(key_columns + [update_col])
             )
-            if update_lf.select(pl.len()).collect().item() == 0:
+            update_row_count = update_lf.select(pl.len()).collect().item()
+            if update_row_count == 0:
                 continue
 
-            with tempfile.TemporaryDirectory() as tmp_dir:
-                update_csv_path = os.path.join(tmp_dir, "update.csv")
-                update_lf.sink_csv(update_csv_path, quote_style="necessary")
-                self.db.truncate_table(tmp_table)
-                remote_csv_gz_copy(update_csv_path, tmp_table)
+            update_log = ProcessLogger(
+                "cdc_update_column",
+                table=self.db_fact_table,
+                update_column=update_col,
+                update_rows=update_row_count,
+                tmp_table=tmp_table,
+            )
 
-            op_and_key = key_column_join_type(update_lf, key_columns)
-            update_q = bulk_update_from_temp(self.db_fact_table, update_col, op_and_key)
-            self.db.execute(update_q)
+            try:
+                with tempfile.TemporaryDirectory() as tmp_dir:
+                    update_csv_path = os.path.join(tmp_dir, "update.csv")
+                    update_lf.sink_csv(update_csv_path, quote_style="necessary")
+                    self.db.truncate_table(tmp_table)
+                    remote_csv_gz_copy(update_csv_path, tmp_table)
+
+                op_and_key = key_column_join_type(update_lf, key_columns)
+                update_q = bulk_update_from_temp(self.db_fact_table, update_col, op_and_key)
+                self.db.execute(update_q)
+                update_log.log_complete()
+
+            except Exception as exception:
+                update_log.log_failure(exception)
+                raise
 
     def cdc_delete(self, cdc_lf: pl.LazyFrame, tmp_table: str, key_columns: List[str]) -> None:
         """
@@ -358,16 +373,29 @@ class CubicODSQlik:
         Perform INSERT from cdc dataframe
         """
         insert_lf = cdc_lf.filter(pl.col("header__change_oper").eq("I")).drop(CDC_COLUMNS)
-        if insert_lf.select(pl.len()).collect().item() == 0:
+        insert_row_count = insert_lf.select(pl.len()).collect().item()
+        if insert_row_count == 0:
             return
 
+        insert_log = ProcessLogger(
+            "cdc_insert_rows",
+            table=self.db_fact_table,
+            insert_rows=insert_row_count,
+            tmp_table=tmp_table,
+        )
         insert_q = bulk_insert_from_temp(self.db_fact_table, tmp_table, insert_lf.collect_schema().names())
-        with tempfile.TemporaryDirectory() as tmp_dir:
-            insert_path = os.path.join(tmp_dir, "insert.csv")
-            insert_lf.sink_csv(insert_path, quote_style="necessary")
-            self.db.truncate_table(tmp_table)
-            remote_csv_gz_copy(insert_path, tmp_table)
-        self.db.execute(insert_q)
+        try:
+            with tempfile.TemporaryDirectory() as tmp_dir:
+                insert_path = os.path.join(tmp_dir, "insert.csv")
+                insert_lf.sink_csv(insert_path, quote_style="necessary")
+                self.db.truncate_table(tmp_table)
+                remote_csv_gz_copy(insert_path, tmp_table)
+            self.db.execute(insert_q)
+            insert_log.log_complete()
+
+        except Exception as exception:
+            insert_log.log_failure(exception)
+            raise
 
     def cdc_load_folder(self, load_folder: str) -> None:
         """
@@ -383,9 +411,15 @@ class CubicODSQlik:
 
         :param load_folder: folder containing all csv.gz files to be loaded
         """
-        logger = ProcessLogger("cdc_load_folder", load_folder=load_folder, table=self.db_fact_table)
+        folder_files = os.listdir(load_folder)
+        logger = ProcessLogger(
+            "cdc_load_folder",
+            load_folder=load_folder,
+            table=self.db_fact_table,
+            file_count=len(folder_files),
+        )
         try:
-            dfm_object = os.listdir(load_folder)[0].replace(".csv", ".dfm").replace("|", "/")
+            dfm_object = folder_files[0].replace(".csv", ".dfm").replace("|", "/")
             merge_csv = os.path.join(load_folder, MERGED_FNAME)
             key_columns = [col["name"].lower() for col in self.etl_status.last_schema if col["primaryKeyPos"] > 0]
             load_table = f"{self.db_fact_table}_load"
@@ -395,15 +429,28 @@ class CubicODSQlik:
             cdc_lf = lf_from_merged_csv(merge_csv, dfm_object)
 
             # Load records into _history table
+            history_log = ProcessLogger(
+                "cdc_history_copy",
+                table=self.db_fact_table,
+                load_folder=load_folder,
+                tmp_table=load_table,
+            )
             self.db.truncate_table(load_table)
             remote_csv_gz_copy(merge_csv, load_table)
             self.db.execute(bulk_insert_from_temp(self.db_history_table, load_table, cdc_lf.collect_schema().names()))
+            history_log.log_complete()
 
+            insert_phase_log = ProcessLogger("cdc_insert_phase", table=self.db_fact_table, load_folder=load_folder)
             self.cdc_insert(cdc_lf, load_table)
+            insert_phase_log.log_complete()
 
+            update_phase_log = ProcessLogger("cdc_update_phase", table=self.db_fact_table, load_folder=load_folder)
             self.cdc_update(cdc_lf, load_table, key_columns)
+            update_phase_log.log_complete()
 
+            delete_phase_log = ProcessLogger("cdc_delete_phase", table=self.db_fact_table, load_folder=load_folder)
             self.cdc_delete(cdc_lf, load_table, key_columns)
+            delete_phase_log.log_complete()
 
             self.update_status(last_cdc_ts=max(cdc_ts, self.etl_status.last_cdc_ts))
             self.save_status(self.etl_status)
