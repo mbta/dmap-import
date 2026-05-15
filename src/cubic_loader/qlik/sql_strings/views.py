@@ -1707,3 +1707,153 @@ FROM
     EDW_farerev_recovery_txn_a)
 SELECT * FROM farerev_recovery_txn_a;
 """
+
+WC232_ACQ_CONF = """
+CREATE OR REPLACE VIEW ods.wc232_acq_conf AS (
+SELECT
+  UNSETTLED_CRDB_ACQ_CONF.POSTING_DAY_KEY,
+  UNSETTLED_CRDB_ACQ_CONF.SETTLEMENT_STATE,
+  UNSETTLED_CRDB_ACQ_CONF.MERCHANT_NUMBER,
+  UNSETTLED_CRDB_ACQ_CONF.CREDIT_CARD_TYPE,
+  UNSETTLED_CRDB_ACQ_CONF.EQUIPMENT_NAME,
+  UNSETTLED_CRDB_ACQ_CONF.CAPTURE_DATE,
+  UNSETTLED_CRDB_ACQ_CONF.BANK_SETTLEMENT_DATE,
+  UNSETTLED_CRDB_ACQ_CONF.source_crdb_acquirer_conf_id AS transaction_id,
+  UNSETTLED_CRDB_ACQ_CONF.RETRIEVAL_REF_NBR,
+    COALESCE(UNSETTLED_CRDB_ACQ_CONF.TRANSACTION_AMOUNT,0)::numeric / 100 AS transaction_amount,
+  UNSETTLED_CRDB_ACQ_CONF.TRANSIT_ACCOUNT_ID
+FROM
+  ods.edw_unsettled_crdb_acq_conf UNSETTLED_CRDB_ACQ_CONF
+)
+;
+"""
+
+WC232_DEVICE_CASH_STC = """
+CREATE OR REPLACE VIEW ods.wc232_device_cash_stc AS (
+SELECT
+    COALESCE(UNSETTLED_DEVICE_CASH_STC.VALUE_CASH,0)::numeric / 100 AS value_cash,
+  UNSETTLED_DEVICE_CASH_STC.EVENT_DTM,
+  UNSETTLED_DEVICE_CASH_STC.DEVICE_ID,
+  UNSETTLED_DEVICE_CASH_STC.DW_CBX_TRACKING_ID,
+  UNSETTLED_DEVICE_CASH_STC.READY_FOR_SETTLEMENT_DTM,
+    to_date(UNSETTLED_DEVICE_CASH_STC.POSTING_DAY_KEY::varchar, 'YYYYMMDD') AS posting_day_key,
+  UNSETTLED_DEVICE_CASH_STC.SETTLEMENT_STATE
+FROM
+  ods.edw_unsettled_device_cash_stc UNSETTLED_DEVICE_CASH_STC
+  )
+;
+"""
+
+WC232_MISC = """
+CREATE OR REPLACE VIEW ods.wc232_misc AS (
+SELECT
+  UNSETTLED_MISC.SETTLEMENT_STATE,
+    to_date(UNSETTLED_MISC.POSTING_DAY_KEY::varchar, 'YYYYMMDD') AS posting_day_key,
+  UNSETTLED_MISC.READY_FOR_SETTLEMENT_DTM,
+  UNSETTLED_MISC.TXN_DESC,
+  eod.OPERATOR_NAME,
+  eptd.PAYMENT_TYPE_NAME,
+  efpd.FARE_PROD_NAME,
+  UNSETTLED_MISC.TRANSIT_ACCOUNT_ID,
+  UNSETTLED_MISC.PASS_ID,
+    COALESCE(UNSETTLED_MISC.PASS_COST,0)::numeric / 100 AS pass_cost,
+  UNSETTLED_MISC.PASS_USE_COUNT
+FROM
+ 	ods.edw_unsettled_misc UNSETTLED_MISC
+ 		LEFT JOIN ods.edw_fare_product_dimension efpd ON UNSETTLED_MISC.fare_prod_key = efpd.fare_prod_key 
+		LEFT JOIN ods.edw_operator_dimension eod ON UNSETTLED_MISC.operator_id = eod.operator_id 
+		LEFT JOIN ods.edw_payment_type_dimension eptd ON UNSETTLED_MISC.payment_type_key = eptd.payment_type_key 
+)
+;
+"""
+
+WC232_PAYMENT_REJECTION = """
+CREATE OR REPLACE VIEW ods.wc232_payment_rejection AS (
+SELECT
+  UNSETTLED_CRDB_CHGBK.SETTLEMENT_STATE,
+    to_date(UNSETTLED_CRDB_CHGBK.POSTING_DAY_KEY::varchar, 'YYYYMMDD') AS posting_day_key,
+  UNSETTLED_CRDB_CHGBK.READY_FOR_SETTLEMENT_DTM,
+  UNSETTLED_CRDB_CHGBK.CHARGEBACK_REF_NBR,
+  ca.CHGBK_ACTIVITY_TYPE_NAME,
+    COALESCE(UNSETTLED_CRDB_CHGBK.CHARGEBACK_AMOUNT,0)::numeric / 100 AS chargeback_amount,
+    COALESCE(UNSETTLED_CRDB_CHGBK.CHARGEBACK_FEE_AMOUNT,0)::numeric / 100 AS chargeback_fee_amount,
+  UNSETTLED_CRDB_CHGBK.RETRIEVAL_REF_NBR,
+  UNSETTLED_CRDB_CHGBK.MERCHANT_NUMBER,
+  UNSETTLED_CRDB_CHGBK.CREDIT_CARD_TYPE,
+  UNSETTLED_CRDB_CHGBK.source_crdb_acquirer_chgbk_id AS transaction_id,
+  UNSETTLED_CRDB_CHGBK.TRANSIT_ACCOUNT_ID
+FROM
+	ods.edw_unsettled_crdb_chgbk UNSETTLED_CRDB_CHGBK
+		LEFT JOIN ods.edw_chgbk_activity_type_dimension ca ON UNSETTLED_CRDB_CHGBK.crdb_chgbk_activity_type_id = ca.crdb_chgbk_activity_type_id 
+)
+;
+"""
+
+WC232_SALE = """
+CREATE OR REPLACE VIEW ods.wc232_sale AS (
+SELECT
+us.SETTLEMENT_STATE,
+us.DEVICE_ID,
+efpd.FARE_PROD_NAME,
+eod.OPERATOR_NAME,
+eptd.PAYMENT_TYPE_NAME,
+us.TRANSACTION_DTM,
+COALESCE(us.ADMINISTRATIVE_FEE,0)::numeric / 100 AS administrative_fee,
+COALESCE(us.DEPOSIT_VALUE,0)::numeric / 100 AS deposit_value,
+COALESCE(us.REPLACEMENT_FEE,0)::numeric / 100 AS replacement_fee,
+COALESCE(us.OVERPAY,0)::numeric / 100 AS overpay,
+COALESCE(us.TRANSIT_VALUE,0)::numeric / 100 AS transit_value,
+COALESCE(us.UNDERPAY,0)::numeric / 100 AS underpay,
+COALESCE(us.BENEFIT_VALUE,0)::numeric / 100 AS benefit_value,
+COALESCE(us.BANKCARD_PAYMENT_VALUE,0)::numeric / 100 AS bankcard_payment_value,
+COALESCE(us.PASS_COST,0)::numeric / 100 AS pass_cost,
+us.TRANSACTION_ID,
+COALESCE(us.SHIPPING_FEE,0)::numeric / 100 AS shipping_fee,
+estd.SALE_TYPE_NAME,
+us.READY_FOR_SETTLEMENT_DTM,
+us.POSTING_DAY_KEY,
+us.ORDER_NBR,
+us.TRANSIT_ACCOUNT_ID,
+erd.REASON_CODE,
+us.PASS_ID,
+COALESCE(us.ONE_ACCOUNT_VALUE,0)::numeric / 100 AS one_account_value,
+COALESCE(us.UNCOLLECTIBLE_AMOUNT,0)::numeric / 100 AS uncollectible_amount,
+COALESCE(us.DISCOUNT_AMOUNT,0)::numeric / 100 AS discount_amount,
+ptd.PURSE_NAME,
+COALESCE(us.RESTRICTED_PURSE_VALUE,0)::numeric / 100 AS restricted_purse_value,
+us.RETRIEVAL_REF_NBR,
+COALESCE(us.REFUNDABLE_PURSE_VALUE,0)::numeric / 100 AS refundable_purse_value,
+COALESCE(us.PREPAID_BANKCARD_VALUE,0)::numeric / 100 AS prepaid_bankcard_value,
+us.PAYMENT_TRANSIT_ACCOUNT_ID
+FROM
+	ods.edw_unsettled_sale us
+		LEFT JOIN ods.edw_fare_product_dimension efpd ON us.fare_prod_key = efpd.fare_prod_key 
+		LEFT JOIN ods.edw_operator_dimension eod ON us.operator_id = eod.operator_id 
+		LEFT JOIN ods.edw_payment_type_dimension eptd ON us.payment_type_key = eptd.payment_type_key 
+		LEFT JOIN ods.edw_sale_type_dimension estd ON us.sale_type_key = estd.sale_type_key 
+		LEFT JOIN ods.edw_reason_dimension erd ON us.reason_key = erd.reason_key 
+		LEFT JOIN ods.edw_purse_type_dimension ptd ON us.purse_sku = ptd.purse_sku 
+WHERE us.device_id IS NOT NULL
+)
+;
+"""
+
+WC232_SYS_CONF = """
+CREATE OR REPLACE VIEW ods.wc232_sys_conf AS (
+SELECT
+  UNSETTLED_CRDB_SYS_CONF.SETTLEMENT_STATE,
+  UNSETTLED_CRDB_SYS_CONF.POSTING_DAY_KEY,
+  UNSETTLED_CRDB_SYS_CONF.MERCHANT_NUMBER,
+  UNSETTLED_CRDB_SYS_CONF.CREDIT_CARD_TYPE,
+  UNSETTLED_CRDB_SYS_CONF.EQUIPMENT_NAME,
+  UNSETTLED_CRDB_SYS_CONF.CAPTURE_DATE,
+  UNSETTLED_CRDB_SYS_CONF.msg_dtm AS transaction_dtm,
+  UNSETTLED_CRDB_SYS_CONF.pal_confirmation_id AS transaction_id,
+  UNSETTLED_CRDB_SYS_CONF.RETRIEVAL_REF_NBR,
+    COALESCE(UNSETTLED_CRDB_SYS_CONF.TRANSACTION_AMOUNT,0)::numeric / 100 AS transaction_amount,
+  UNSETTLED_CRDB_SYS_CONF.TRANSIT_ACCOUNT_ID
+FROM
+  ods.edw_unsettled_crdb_sys_conf UNSETTLED_CRDB_SYS_CONF
+  )
+;
+"""
