@@ -523,7 +523,10 @@ WA160_VIEW = """
         coalesce(emd.external_ref, emd.customer_member_id) as external_ref,
         coalesce(ut.restricted_purse_value, 0) as restricted_purse_value,
         coalesce(ut.refundable_purse_value, 0) as refundable_purse_value,
-        coalesce(ut.uncollectible_amount, 0)::real / 100 as uncollectible_amount
+        coalesce(ut.uncollectible_amount, 0)::real / 100 as uncollectible_amount,
+        tad.is_registered,
+        coalesce(ut.discount_amount, 0)::real / 100 AS discount_amount,
+        coalesce(ut.post_pay_amount, 0)::real / 100 AS post_pay_amount
     FROM
         ods.edw_use_transaction ut
     LEFT JOIN
@@ -1856,4 +1859,54 @@ FROM
   ods.edw_unsettled_crdb_sys_conf UNSETTLED_CRDB_SYS_CONF
   )
 ;
+"""
+
+
+WO118 = """
+CREATE OR REPLACE VIEW ods.wo118
+AS
+SELECT
+'WO118',
+DT_PRODUCT_TRANSFER_DETAILS.TRANSIT_DAY,
+DT_PRODUCT_TRANSFER_DETAILS.ORDER_DTM,
+DT_PRODUCT_TRANSFER_DETAILS.ORDER_NBR,
+DT_PRODUCT_TRANSFER_DETAILS.PATRON_ACCOUNT_ID,
+DT_PRODUCT_TRANSFER_DETAILS.SOURCE_TRANSIT_ACCOUNT,
+DT_PRODUCT_TRANSFER_DETAILS.TARGET_TRANSIT_ACCOUNT,
+DT_PRODUCT_TRANSFER_DETAILS.PASS_ID,
+DT_PRODUCT_TRANSFER_DETAILS.STORED_VALUE,
+DT_PRODUCT_TRANSFER_DETAILS.REFUNDABLE_PURSE_VALUE,
+DT_PRODUCT_TRANSFER_DETAILS.BENEFIT_VALUE,
+DT_PRODUCT_TRANSFER_DETAILS.SALES_CHANNEL_NAME
+FROM
+(
+SELECT O.ORDER_DAY_KEY AS transit_day,
+O.ORDER_DTM,
+O.ORDER_NBR,
+O.PATRON_ACCOUNT_ID,
+LI.SUBSYSTEM_ACCOUNT_REF AS source_transit_account,
+LI.XFER_TO_SUBSYSTEM_ACCOUNT_REF AS target_transit_account,
+ST.PASS_ID AS PASS_ID,
+ST.VALUE_CHANGED/100 AS stored_value,
+ST.BENEFIT_VALUE/100 AS BENEFIT_VALUE,
+ST.REFUNDABLE_PURSE_VALUE/100 AS refundable_purse_value,
+SALES_CHANNEL_DIMENSION.SALES_CHANNEL_NAME,
+ST.PASS_COST,
+ST.PURSE_NAME,
+O.ORDER_STATUS,
+LI.LINE_ITEM_AMOUNT/100 AS line_item_aount,
+LI.XFER_ALL_PRODUCTS,
+LI.SUBSYSTEM_PURSE_RESTRICTION,
+LI.LINE_ITEM_STATUS,
+ST.TRANSIT_ACCOUNT_ID
+FROM ods.edw_patron_order O
+	INNER JOIN ods.edw_patron_order_line_item LI ON O.DW_PATRON_ORDER_ID = LI.DW_PATRON_ORDER_ID
+	INNER JOIN ods.edw_patron_order_type_dimension OT ON O.PATRON_ORDER_TYPE_KEY = OT.PATRON_ORDER_TYPE_KEY
+	INNER JOIN ods.edw_sale_transaction ST ON ST.DW_PATRON_ORDER_LINE_ITEM_ID = LI.DW_PATRON_ORDER_LINE_ITEM_ID AND ST.REASON_KEY = 990508
+	INNER JOIN ods.edw_sales_channel_dimension SALES_CHANNEL_DIMENSION ON O.SALES_CHANNEL_KEY = SALES_CHANNEL_DIMENSION.SALES_CHANNEL_KEY
+WHERE OT.ORDER_TYPE_ENUM = 'Transfer'
+ORDER BY ORDER_NBR
+)  DT_PRODUCT_TRANSFER_DETAILS
+WHERE
+( DT_PRODUCT_TRANSFER_DETAILS.TRANSIT_DAY ) BETWEEN 20260101 AND 20260201;
 """
