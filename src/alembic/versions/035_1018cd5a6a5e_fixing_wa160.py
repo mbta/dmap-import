@@ -1,7 +1,7 @@
 """Fixing wa160
 
 Revision ID: 1018cd5a6a5e
-Revises: d84dfdee27dc
+Revises: 873bd2afd66f
 Create Date: 2026-05-26 15:58:08.446107
 
 """
