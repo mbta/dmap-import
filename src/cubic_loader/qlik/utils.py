@@ -248,7 +248,12 @@ def polars_schema_from_dfm(dfm_path: str) -> pl.Schema:
 
     :return: polars schema of dfm_path
     """
-    return pl.Schema({col["name"].lower(): qlik_type_to_polars(col) for col in dfm_schema_to_json(dfm_path)})
+    return pl.Schema(
+        {
+            col["name"].lower(): qlik_type_to_polars(col)
+            for col in dfm_schema_to_json(dfm_path)
+        }
+    )
 
 
 def lf_from_merged_csv(csv_path: str, dfm_path: str) -> pl.LazyFrame:
@@ -264,10 +269,14 @@ def lf_from_merged_csv(csv_path: str, dfm_path: str) -> pl.LazyFrame:
     :return: polars dataframe of csv_path file
     """
     schema = polars_schema_from_dfm(dfm_path)
-    return pl.scan_csv(csv_path, schema=schema).filter(pl.col("header__change_oper").ne("B"))
+    return pl.scan_csv(csv_path, schema=schema).filter(
+        pl.col("header__change_oper").ne("B")
+    )
 
 
-def key_column_join_type(lf: pl.LazyFrame, key_columns: List[str]) -> List[Tuple[str, str]]:
+def key_column_join_type(
+    lf: pl.LazyFrame, key_columns: List[str]
+) -> List[Tuple[str, str]]:
     """
     Check for NULL counts in key_columns to determine if `=` or `IS NOT DISTINCT FROM` can be used
     """

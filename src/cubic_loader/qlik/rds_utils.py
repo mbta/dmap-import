@@ -51,7 +51,9 @@ def qlik_type_to_pg(qlik_type: str, scale: int, precision: int) -> str:
     return return_type
 
 
-def create_tables_from_schema(schema: List[DFMSchemaFields], schema_and_table: str) -> str:
+def create_tables_from_schema(
+    schema: List[DFMSchemaFields], schema_and_table: str
+) -> str:
     """
     produce CREATE table string for FACT and HISTORY tables from dfm snapshot path
 
@@ -66,7 +68,9 @@ def create_tables_from_schema(schema: List[DFMSchemaFields], schema_and_table: s
     dfm_columns: List[str] = []
     dfm_keys: List[str] = []
     for column in schema:
-        dfm_columns.append(f"{column['name']} {qlik_type_to_pg(column['type'], column['scale'], column['precision'])}")
+        dfm_columns.append(
+            f"{column['name']} {qlik_type_to_pg(column['type'], column['scale'], column['precision'])}"
+        )
         if column["primaryKeyPos"] > 0:
             dfm_keys.append(column["name"])
 
@@ -76,11 +80,13 @@ def create_tables_from_schema(schema: List[DFMSchemaFields], schema_and_table: s
     # FACT table is created without a primary key
     # Tables coming from CUBIC ODS system are Oracle based which allows NULL values in Primary Key columns
     # Postgres does not allow NULL in Primary Key columns, instead a standard INDEX on the Key columns is created
-    ops.append(f"CREATE TABLE IF NOT EXISTS {schema_and_table} ({",".join(dfm_columns)});")
+    ops.append(
+        f"CREATE TABLE IF NOT EXISTS {schema_and_table} ({','.join(dfm_columns)});"
+    )
 
     # FACT Table Index on Primary Key columns
     ops.append(
-        f"CREATE INDEX IF NOT EXISTS {schema_and_table.replace('.','_')}_fact_pk_idx on {schema_and_table} "
+        f"CREATE INDEX IF NOT EXISTS {schema_and_table.replace('.', '_')}_fact_pk_idx on {schema_and_table} "
         f"({','.join(dfm_keys)});"
     )
 
@@ -91,30 +97,36 @@ def create_tables_from_schema(schema: List[DFMSchemaFields], schema_and_table: s
         ("header__change_oper", "CHANGE_OPER"),
         ("header__change_seq", "CHANGE_SEQ"),
     )
-    header_cols: List[str] = [f"{col[0]} {qlik_type_to_pg(col[1], 0, 0)}" for col in header_fields]
+    header_cols: List[str] = [
+        f"{col[0]} {qlik_type_to_pg(col[1], 0, 0)}" for col in header_fields
+    ]
     history_columns = header_cols + dfm_columns
     ops.append(
         (
-            f"CREATE TABLE IF NOT EXISTS {schema_and_table}_history ({",".join(history_columns)}) "
+            f"CREATE TABLE IF NOT EXISTS {schema_and_table}_history ({','.join(history_columns)}) "
             " PARTITION BY RANGE (header__timestamp);"
         )
     )
 
     # Create load Table for loading snapshot data
     load_columns = header_cols + dfm_columns
-    ops.append(f"CREATE TABLE IF NOT EXISTS {schema_and_table}_load ({",".join(load_columns)});")
+    ops.append(
+        f"CREATE TABLE IF NOT EXISTS {schema_and_table}_load ({','.join(load_columns)});"
+    )
 
     # Create INDEX on HISTORY Table that will be used for creating FACT table
     index_columns = dfm_keys + ["header__change_oper", "header__change_seq DESC"]
     ops.append(
-        f"CREATE INDEX IF NOT EXISTS {schema_and_table.replace('.','_')}_to_fact_idx on {schema_and_table}_history "
+        f"CREATE INDEX IF NOT EXISTS {schema_and_table.replace('.', '_')}_to_fact_idx on {schema_and_table}_history "
         f"({','.join(index_columns)});"
     )
 
     return " ".join(ops)
 
 
-def create_history_table_partitions(schema_and_table: str, start_ts: Optional[str] = None) -> str:
+def create_history_table_partitions(
+    schema_and_table: str, start_ts: Optional[str] = None
+) -> str:
     """
     produce CREATE partition table strings for history table
 
@@ -158,7 +170,9 @@ def drop_table(schema_and_table: str) -> str:
     return f"DROP TABLE IF EXISTS {schema_and_table} CASCADE;"
 
 
-def add_columns_to_table(new_columns: List[DFMSchemaFields], schema_and_table: str) -> str:
+def add_columns_to_table(
+    new_columns: List[DFMSchemaFields], schema_and_table: str
+) -> str:
     """
     produce ALTER table string to add columns to FACT and HISTORY tables
 
@@ -204,23 +218,33 @@ def convert_cols_to_string(new_columns: list[str], schema_and_table: str) -> str
     return " ".join(alter_strings)
 
 
-def bulk_delete_from_temp(schema_and_table: str, op_and_keys: List[Tuple[str, str]]) -> str:
+def bulk_delete_from_temp(
+    schema_and_table: str, op_and_keys: List[Tuple[str, str]]
+) -> str:
     """
     create query to DELETE records from table based on key columns
     """
     tmp_table = f"{schema_and_table}_load"
-    where_clause = " AND ".join([f"{schema_and_table}.{t} {op} {tmp_table}.{t}" for op, t in op_and_keys])
-    delete_query = f"DELETE FROM {schema_and_table} USING {tmp_table} WHERE {where_clause};"
+    where_clause = " AND ".join(
+        [f"{schema_and_table}.{t} {op} {tmp_table}.{t}" for op, t in op_and_keys]
+    )
+    delete_query = (
+        f"DELETE FROM {schema_and_table} USING {tmp_table} WHERE {where_clause};"
+    )
 
     return delete_query
 
 
-def bulk_update_from_temp(schema_and_table: str, update_column: str, op_and_keys: List[Tuple[str, str]]) -> str:
+def bulk_update_from_temp(
+    schema_and_table: str, update_column: str, op_and_keys: List[Tuple[str, str]]
+) -> str:
     """
     create query to UPDATE records from table based on key columns
     """
     tmp_table = f"{schema_and_table}_load"
-    where_clause = " AND ".join([f"{schema_and_table}.{t} {op} {tmp_table}.{t}" for op, t in op_and_keys])
+    where_clause = " AND ".join(
+        [f"{schema_and_table}.{t} {op} {tmp_table}.{t}" for op, t in op_and_keys]
+    )
     update_query = (
         f"UPDATE {schema_and_table} SET {update_column}={tmp_table}.{update_column} "
         f"FROM {tmp_table} WHERE {where_clause};"
@@ -229,7 +253,9 @@ def bulk_update_from_temp(schema_and_table: str, update_column: str, op_and_keys
     return update_query
 
 
-def bulk_insert_from_temp(insert_table_and_schema: str, temp_table_and_schema: str, columns: List[str]) -> str:
+def bulk_insert_from_temp(
+    insert_table_and_schema: str, temp_table_and_schema: str, columns: List[str]
+) -> str:
     """
     create query to INSERT records from temp table to fact table
     """

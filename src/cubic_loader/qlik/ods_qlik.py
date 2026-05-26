@@ -61,7 +61,9 @@ def get_snapshot_dfms(table: str) -> List[DFMDetails]:
     prefix = os.path.join(ODIN_PROCESSED, QLIK, f"{table}/")
     odin_archive_dfms = s3_list_objects(S3_ARCHIVE, prefix, in_filter=".dfm")
     for dfm in odin_archive_dfms:
-        found_snapshots.append(DFMDetails(path=dfm, ts=re_get_first(dfm, RE_SNAPSHOT_TS)))
+        found_snapshots.append(
+            DFMDetails(path=dfm, ts=re_get_first(dfm, RE_SNAPSHOT_TS))
+        )
 
     assert len(found_snapshots) > 0
 
@@ -79,7 +81,9 @@ def get_cdc_gz_csvs(etl_status: TableStatus, table: str) -> List[str]:
     table_prefix = os.path.join(ODIN_PROCESSED, QLIK, f"{table}__ct/")
     snapshot_prefix = f"{table_prefix}snapshot={etl_status.current_snapshot_ts}/"
 
-    cdc_csvs = s3_list_cdc_gz_objects(S3_ARCHIVE, snapshot_prefix, min_ts=etl_status.last_cdc_ts)
+    cdc_csvs = s3_list_cdc_gz_objects(
+        S3_ARCHIVE, snapshot_prefix, min_ts=etl_status.last_cdc_ts
+    )
 
     return sorted(cdc_csvs, key=lambda l: re_get_first(l, RE_CDC_TS))
 
@@ -96,14 +100,18 @@ def thread_save_csv_file(args: Tuple[str, str]) -> None:
     logger = ProcessLogger("download_cdc_file", csv_object=csv_object)
 
     try:
-        csv_local_file = csv_object.replace("s3://", "").replace("/", "|").replace(".csv.gz", ".csv")
+        csv_local_file = (
+            csv_object.replace("s3://", "").replace("/", "|").replace(".csv.gz", ".csv")
+        )
         csv_local_path = os.path.join(tmp_dir, csv_local_file)
         with gzip.open(s3_get_object(csv_object), "rb") as r_bytes:
             with open(csv_local_path, mode="wb") as w_bytes:
                 w_bytes.write(r_bytes.read())
 
         csv_headers = header_from_csv_gz(csv_local_path)
-        hash_folder = os.path.join(tmp_dir, hashlib.sha1(csv_headers.encode("utf8")).hexdigest())
+        hash_folder = os.path.join(
+            tmp_dir, hashlib.sha1(csv_headers.encode("utf8")).hexdigest()
+        )
 
         os.makedirs(hash_folder, exist_ok=True)
         os.rename(csv_local_path, os.path.join(hash_folder, csv_local_file))
@@ -128,7 +136,7 @@ class CubicODSQlik:
         """
         self.table = table
         self.status_path = os.path.join(ODS_STATUS, f"{table}.json")
-        self.db_fact_table = f"{schema}.{table.replace(".", "_").lower()}"
+        self.db_fact_table = f"{schema}.{table.replace('.', '_').lower()}"
         self.db_history_table = f"{self.db_fact_table}_history"
         self.s3_snapshot_dfms = get_snapshot_dfms(table)
         self.last_s3_snapshot_dfm = self.s3_snapshot_dfms[-1]
@@ -189,10 +197,16 @@ class CubicODSQlik:
     def rds_snapshot_load(self) -> None:
         """Perform load of initial load files to history table"""
         # Create _history partitions to cover header__timestamp values of initial load
-        self.db.execute(create_history_table_partitions(self.db_history_table, self.last_s3_snapshot_dfm.ts))
+        self.db.execute(
+            create_history_table_partitions(
+                self.db_history_table, self.last_s3_snapshot_dfm.ts
+            )
+        )
 
         # Load all csv.gz files from snapshot folder into _load table
-        bucket, prefix = s3_split_object_path(self.last_s3_snapshot_dfm.path.rsplit("/", maxsplit=1)[0])
+        bucket, prefix = s3_split_object_path(
+            self.last_s3_snapshot_dfm.path.rsplit("/", maxsplit=1)[0]
+        )
         for s3_path in s3_list_objects(bucket, prefix, in_filter=".csv.gz"):
             remote_csv_gz_copy(s3_path, f"{self.db_fact_table}_load")
 
@@ -254,14 +268,20 @@ class CubicODSQlik:
         ), f"primaryKey changed for table {self.table}"
 
         # check dimenstion change(type, precision or scale)
-        dimension_check = cdc_schema.join(truth_schema, on="name", how="inner", suffix="_t").filter(
+        dimension_check = cdc_schema.join(
+            truth_schema, on="name", how="inner", suffix="_t"
+        ).filter(
             (pl.col("type") != pl.col("type_t"))
             | (pl.col("precision") != pl.col("precision_t"))
             | (pl.col("scale") != pl.col("scale_t"))
         )
 
         # AUTO convert NEW STRING type columns in DB
-        new_string_cols = dimension_check.filter(pl.col("type") == "STRING").get_column("name").to_list()
+        new_string_cols = (
+            dimension_check.filter(pl.col("type") == "STRING")
+            .get_column("name")
+            .to_list()
+        )
         if new_string_cols:
             self.db.execute(convert_cols_to_string(new_string_cols, self.db_fact_table))
             current_schema = self.etl_status.last_schema
@@ -287,9 +307,13 @@ class CubicODSQlik:
             .get_column("assert_fmt")
             .to_list()
         )
-        assert len(dimension_print) == 0, f"dimension change in {dfm_object} -> {','.join(dimension_print)}"
+        assert len(dimension_print) == 0, (
+            f"dimension change in {dfm_object} -> {','.join(dimension_print)}"
+        )
 
-        add_columns: List[DFMSchemaFields] = cdc_schema.join(truth_schema, on="name", how="anti").to_dicts()  # type: ignore
+        add_columns: List[DFMSchemaFields] = cdc_schema.join(
+            truth_schema, on="name", how="anti"
+        ).to_dicts()  # type: ignore
         if len(add_columns) == 0:
             return
 
@@ -299,7 +323,9 @@ class CubicODSQlik:
             current_schema.append(column)
         self.update_status(last_schema=current_schema)
 
-    def cdc_update(self, cdc_lf: pl.LazyFrame, tmp_table: str, key_columns: List[str]) -> None:
+    def cdc_update(
+        self, cdc_lf: pl.LazyFrame, tmp_table: str, key_columns: List[str]
+    ) -> None:
         """
         Perform UPDATE from cdc dataframe
         """
@@ -337,7 +363,9 @@ class CubicODSQlik:
                     remote_csv_gz_copy(update_csv_path, tmp_table)
 
                 op_and_key = key_column_join_type(update_lf, key_columns)
-                update_q = bulk_update_from_temp(self.db_fact_table, update_col, op_and_key)
+                update_q = bulk_update_from_temp(
+                    self.db_fact_table, update_col, op_and_key
+                )
                 self.db.execute(update_q)
                 update_log.log_complete()
 
@@ -345,7 +373,9 @@ class CubicODSQlik:
                 update_log.log_failure(exception)
                 raise
 
-    def cdc_delete(self, cdc_lf: pl.LazyFrame, tmp_table: str, key_columns: List[str]) -> None:
+    def cdc_delete(
+        self, cdc_lf: pl.LazyFrame, tmp_table: str, key_columns: List[str]
+    ) -> None:
         """
         Perform DELETE from cdc dataframe
         """
@@ -372,7 +402,9 @@ class CubicODSQlik:
         """
         Perform INSERT from cdc dataframe
         """
-        insert_lf = cdc_lf.filter(pl.col("header__change_oper").eq("I")).drop(CDC_COLUMNS)
+        insert_lf = cdc_lf.filter(pl.col("header__change_oper").eq("I")).drop(
+            CDC_COLUMNS
+        )
         insert_row_count = insert_lf.select(pl.len()).collect().item()
         if insert_row_count == 0:
             return
@@ -383,7 +415,9 @@ class CubicODSQlik:
             insert_rows=insert_row_count,
             tmp_table=tmp_table,
         )
-        insert_q = bulk_insert_from_temp(self.db_fact_table, tmp_table, insert_lf.collect_schema().names())
+        insert_q = bulk_insert_from_temp(
+            self.db_fact_table, tmp_table, insert_lf.collect_schema().names()
+        )
         try:
             with tempfile.TemporaryDirectory() as tmp_dir:
                 insert_path = os.path.join(tmp_dir, "insert.csv")
@@ -421,7 +455,11 @@ class CubicODSQlik:
         try:
             dfm_object = folder_files[0].replace(".csv", ".dfm").replace("|", "/")
             merge_csv = os.path.join(load_folder, MERGED_FNAME)
-            key_columns = [col["name"].lower() for col in self.etl_status.last_schema if col["primaryKeyPos"] > 0]
+            key_columns = [
+                col["name"].lower()
+                for col in self.etl_status.last_schema
+                if col["primaryKeyPos"] > 0
+            ]
             load_table = f"{self.db_fact_table}_load"
 
             cdc_ts = merge_cdc_csv_gz_files(load_folder)
@@ -437,18 +475,28 @@ class CubicODSQlik:
             )
             self.db.truncate_table(load_table)
             remote_csv_gz_copy(merge_csv, load_table)
-            self.db.execute(bulk_insert_from_temp(self.db_history_table, load_table, cdc_lf.collect_schema().names()))
+            self.db.execute(
+                bulk_insert_from_temp(
+                    self.db_history_table, load_table, cdc_lf.collect_schema().names()
+                )
+            )
             history_log.log_complete()
 
-            insert_phase_log = ProcessLogger("cdc_insert_phase", table=self.db_fact_table, load_folder=load_folder)
+            insert_phase_log = ProcessLogger(
+                "cdc_insert_phase", table=self.db_fact_table, load_folder=load_folder
+            )
             self.cdc_insert(cdc_lf, load_table)
             insert_phase_log.log_complete()
 
-            update_phase_log = ProcessLogger("cdc_update_phase", table=self.db_fact_table, load_folder=load_folder)
+            update_phase_log = ProcessLogger(
+                "cdc_update_phase", table=self.db_fact_table, load_folder=load_folder
+            )
             self.cdc_update(cdc_lf, load_table, key_columns)
             update_phase_log.log_complete()
 
-            delete_phase_log = ProcessLogger("cdc_delete_phase", table=self.db_fact_table, load_folder=load_folder)
+            delete_phase_log = ProcessLogger(
+                "cdc_delete_phase", table=self.db_fact_table, load_folder=load_folder
+            )
             self.cdc_delete(cdc_lf, load_table, key_columns)
             delete_phase_log.log_complete()
 
@@ -480,7 +528,9 @@ class CubicODSQlik:
                 continue
             file_list = os.listdir(load_folder)
             folder_count = len(file_list)
-            folder_bytes = sum(os.path.getsize(os.path.join(load_folder, f)) for f in file_list)
+            folder_bytes = sum(
+                os.path.getsize(os.path.join(load_folder, f)) for f in file_list
+            )
             if folder_bytes > max_folder_bytes or folder_count > 5_000:
                 self.cdc_load_folder(load_folder)
 
@@ -494,7 +544,9 @@ class CubicODSQlik:
         pool = ThreadPoolExecutor(max_workers=threading_cpu_count())
 
         with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp_dir:
-            work_files = [(wf, tmp_dir) for wf in get_cdc_gz_csvs(self.etl_status, self.table)]
+            work_files = [
+                (wf, tmp_dir) for wf in get_cdc_gz_csvs(self.etl_status, self.table)
+            ]
             for batch in batched(work_files, 4):
                 # Download batch of cdc csv.gz files
                 for _ in pool.map(thread_save_csv_file, batch):
@@ -550,7 +602,11 @@ class CubicODSQlik:
 
             # create tables and history table partitions
             # will be no-op if tables already exist
-            self.db.execute(create_tables_from_schema(self.etl_status.last_schema, self.db_fact_table))
+            self.db.execute(
+                create_tables_from_schema(
+                    self.etl_status.last_schema, self.db_fact_table
+                )
+            )
             self.db.execute(create_history_table_partitions(self.db_history_table))
 
             if self.etl_status.last_cdc_ts == "":
