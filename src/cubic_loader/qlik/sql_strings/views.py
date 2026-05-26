@@ -525,7 +525,7 @@ WA160_VIEW = """
         coalesce(ut.refundable_purse_value, 0) as refundable_purse_value,
         coalesce(ut.uncollectible_amount, 0)::real / 100 as uncollectible_amount,
         tad.is_registered,
-        coalesce(ut.discount_amount, 0)::real / 100 AS discount_amount,
+        coalesce(ut.discount_applied, 0)::real / 100 AS discount_amount,
         coalesce(ut.post_pay_amount, 0)::real / 100 AS post_pay_amount
     FROM
         ods.edw_use_transaction ut
