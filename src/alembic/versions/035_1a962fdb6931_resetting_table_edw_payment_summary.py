@@ -5,6 +5,7 @@ Revises: 873bd2afd66f
 Create Date: 2026-05-18 15:48:08.064966
 
 """
+
 from typing import Sequence, Union
 
 from cubic_loader.qlik.ods_qlik import CubicODSQlik
@@ -14,8 +15,8 @@ from cubic_loader.utils.postgres import DatabaseManager
 
 
 # revision identifiers, used by Alembic.
-revision: str = '1a962fdb6931'
-down_revision: Union[str, None] = '873bd2afd66f'
+revision: str = "1a962fdb6931"
+down_revision: Union[str, None] = "873bd2afd66f"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
