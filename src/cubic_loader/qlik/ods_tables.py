@@ -81,7 +81,7 @@ CUBIC_ODS_TABLES = [
     #    "EDW.CITATION", # Temporarily disabled, as not part of a view
     #    "EDW.KPI_AGENCY_MAP", # Temporarily disabled, as not part of a view
     #    "EDW.TOKEN_HISTORY", # Temporarily disabled, as not part of a view
-    #    "EDW.FRM_CRDB_RECON_SYSCONF_ACQCONF", # Temporarily disabled, as not part of a view
+    "EDW.FRM_CRDB_RECON_SYSCONF_ACQCONF",
     #    "EDW.TRANSIT_ACCOUNT_BALANCE", # Temporarily disabled, as not part of a view
     "EDW.CUSTOMER_DIMENSION",
     "EDW.PATRON_ORDER",
