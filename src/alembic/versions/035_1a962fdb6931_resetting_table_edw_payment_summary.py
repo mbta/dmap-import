@@ -8,7 +8,8 @@ Create Date: 2026-05-18 15:48:08.064966
 
 from typing import Sequence, Union
 
-from cubic_loader.qlik.ods_qlik import CubicODSQlik
+import os
+from cubic_loader.utils.remote_locations import ODS_SCHEMA, ODS_STATUS
 from cubic_loader.qlik.rds_utils import drop_table
 from cubic_loader.utils.aws import s3_delete_object
 from cubic_loader.utils.postgres import DatabaseManager
@@ -23,20 +24,27 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     table = "EDW.PAYMENT_SUMMARY"
-    qlik_table = CubicODSQlik(table)
     db = DatabaseManager()
 
-    # Ensure status is reset so ETL starts from source snapshot again
-    s3_delete_object(qlik_table.status_path)
+    status_path = os.path.join(ODS_STATUS, f"{table}.json")
+    db_fact_table = f"{ODS_SCHEMA}.{table.replace('.', '_').lower()}"
+    db_history_table = f"{db_fact_table}_history"
 
-    fact_schema, fact_table = qlik_table.db_fact_table.split(".", maxsplit=1)
-    history_schema, history_table = qlik_table.db_history_table.split(".", maxsplit=1)
+    fact_schema, fact_table = db_fact_table.split(".", maxsplit=1)
+    history_schema, history_table = db_history_table.split(".", maxsplit=1)
+
+    print(f"MIGRATION: status_path {status_path}")
+    print(f"MIGRATION: db_fact_table {db_fact_table}")
+    print(f"MIGRATION: db_history_table {db_history_table}")
+
+    # Ensure status is reset so ETL starts from source snapshot again
+    s3_delete_object(status_path)
 
     if db.table_exists(history_schema, history_table):
-        db.execute(drop_table(qlik_table.db_history_table))
+        db.execute(drop_table(db_history_table))
 
     if db.table_exists(fact_schema, fact_table):
-        db.truncate_table(qlik_table.db_fact_table, restart_identity=True, cascade=True)
+        db.truncate_table(db_fact_table, restart_identity=True, cascade=True)
 
 
 def downgrade() -> None:
