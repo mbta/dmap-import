@@ -24,6 +24,13 @@ from cubic_loader.qlik.sql_strings.views import (
     WO150,
 )
 
+from cubic_loader.qlik.sql_strings.comp_views import (
+    COMP_B_TXN_A,
+    COMP_B_TXN_C,
+    COMP_A_TXN_A,
+    COMP_A_TXN_C,
+)
+
 from alembic import op
 import sqlalchemy as sa
 
@@ -56,6 +63,10 @@ def upgrade() -> None:
         WC321_CLEARING_HOUSE,
         WO110,
         WO150,
+        COMP_B_TXN_A,
+        COMP_B_TXN_C,
+        COMP_A_TXN_A,
+        COMP_A_TXN_C,
     ]:
         op.execute(view)
 
