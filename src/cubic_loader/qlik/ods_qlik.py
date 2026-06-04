@@ -458,10 +458,10 @@ class CubicODSQlik:
 
         except Exception as exception:
             logger.log_failure(exception)
-
-        shutil.rmtree(load_folder, ignore_errors=True)
-        self.db.vaccuum_analyze(self.db_history_table)
-        self.db.vaccuum_analyze(self.db_fact_table)
+        finally:
+            shutil.rmtree(load_folder, ignore_errors=True)
+            self.db.vaccuum_analyze(self.db_history_table)
+            self.db.vaccuum_analyze(self.db_fact_table)
 
     def cdc_check_load_folders(self, tmp_dir: str, max_folder_bytes: int = 0) -> None:
         """
@@ -551,7 +551,7 @@ class CubicODSQlik:
             # create tables and history table partitions
             # will be no-op if tables already exist
             self.db.execute(create_tables_from_schema(self.etl_status.last_schema, self.db_fact_table))
-            self.db.execute(create_history_table_partitions(self.db_history_table))
+            self.db.execute(create_history_table_partitions(self.db_history_table, self.etl_status.current_snapshot_ts))
 
             if self.etl_status.last_cdc_ts == "":
                 self.rds_snapshot_load()
