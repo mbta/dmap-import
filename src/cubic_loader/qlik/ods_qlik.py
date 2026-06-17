@@ -253,11 +253,9 @@ class CubicODSQlik:
             .equals(truth_schema.filter(pl.col("primaryKeyPos") > 0).get_column("name"))
         ), f"primaryKey changed for table {self.table}"
 
-        # check dimenstion change(type, precision or scale)
+        # check dimenstion change(type or scale)
         dimension_check = cdc_schema.join(truth_schema, on="name", how="inner", suffix="_t").filter(
-            (pl.col("type") != pl.col("type_t"))
-            | (pl.col("precision") != pl.col("precision_t"))
-            | (pl.col("scale") != pl.col("scale_t"))
+            (pl.col("type") != pl.col("type_t")) | (pl.col("scale") != pl.col("scale_t"))
         )
 
         # AUTO convert NEW STRING type columns in DB
