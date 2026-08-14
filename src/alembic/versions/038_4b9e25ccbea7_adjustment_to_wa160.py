@@ -11,7 +11,7 @@ from typing import Sequence, Union
 from alembic import op
 
 from cubic_loader.utils.postgres import DatabaseManager
-from cubic_loader.qlik.sql_strings.views import WA160_VIEW
+from cubic_loader.qlik.sql_strings.views import WA160_VIEW, WO110
 
 
 # revision identifiers, used by Alembic.
@@ -28,6 +28,7 @@ def upgrade() -> None:
         return
 
     op.execute(WA160_VIEW)
+    op.execute(WO110)
 
 
 def downgrade() -> None:
