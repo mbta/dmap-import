@@ -520,7 +520,6 @@ WA160_VIEW = """
         calculated_fare,
         coalesce(fpd.rider_class_name, tad.rider_class_name) as rider_class_name,
         coalesce(one_account_value, 0) as one_account_value,
-        coalesce(emd.external_ref, emd.customer_member_id) as external_ref,
         coalesce(ut.restricted_purse_value, 0) as restricted_purse_value,
         coalesce(ut.refundable_purse_value, 0) as refundable_purse_value,
         coalesce(ut.uncollectible_amount, 0)::real / 100 as uncollectible_amount,
@@ -533,8 +532,6 @@ WA160_VIEW = """
         ods.edw_fare_product_dimension fpd on ut.fare_prod_key = fpd.fare_prod_key
     LEFT JOIN
         ods.edw_operator_dimension opd on ut.operator_key = opd.operator_key
-    LEFT JOIN
-        ods.edw_member_dimension emd on ut.transit_account_id = emd.transit_account_id::bigint
     LEFT JOIN
         ods.edw_card_dimension cardd on ut.card_key = cardd.card_key
     LEFT JOIN
