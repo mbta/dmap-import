@@ -5,6 +5,7 @@ Revises: ff97f2739274
 Create Date: 2026-08-13 16:35:26.446652
 
 """
+
 from typing import Sequence, Union
 
 from alembic import op
@@ -14,8 +15,8 @@ from cubic_loader.qlik.sql_strings.views import WA160_VIEW
 
 
 # revision identifiers, used by Alembic.
-revision: str = '4b9e25ccbea7'
-down_revision: Union[str, None] = 'ff97f2739274'
+revision: str = "4b9e25ccbea7"
+down_revision: Union[str, None] = "ff97f2739274"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
