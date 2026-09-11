@@ -6,6 +6,7 @@ import shutil
 from typing import Any, Dict, Union, Optional
 
 import psutil
+import sentry_sdk
 
 
 MdValues = Optional[Union[str, int, float]]
@@ -117,7 +118,7 @@ class ProcessLogger:
 
     def log_failure(self, exception: Exception) -> None:
         """
-        log failure of a process
+        log failure of a process, and report it to Sentry
 
         :param exception: Any Exception to be logged
         """
@@ -129,3 +130,11 @@ class ProcessLogger:
         logging.exception(self._get_log_string())
 
         logging.exception(exception)
+
+        # Most failures are logged and swallowed rather than raised, so Sentry is notified
+        # here instead of from a top level exception handler. Exceptions that are logged and
+        # then re-raised pass through log_failure again at each enclosing handler; only the
+        # first (innermost) capture is kept, as it carries the most specific traceback.
+        if not getattr(exception, "_sentry_captured", False):
+            sentry_sdk.capture_exception(exception)
+            setattr(exception, "_sentry_captured", True)
