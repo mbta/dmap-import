@@ -1,6 +1,6 @@
 COMP_B_TXN_A = """
-    DROP VIEW IF EXISTS ods.farerev_payg_trip_txn_a;
-    CREATE VIEW ods.farerev_payg_trip_txn_a AS
+    DROP VIEW IF EXISTS ods.comp_b_addendum_farerev_payg_trip_txn_a;
+    CREATE VIEW ods.comp_b_addendum_farerev_payg_trip_txn_a AS
     WITH EDW_FAREREV_PAYG_TRIP_TXN AS
     (
     SELECT
@@ -214,8 +214,8 @@ COMP_B_TXN_A = """
 """
 
 COMP_B_TXN_C = """
-    DROP VIEW IF EXISTS ods.farerev_payg_trip_txn_c;
-    CREATE VIEW ods.farerev_payg_trip_txn_c AS
+    DROP VIEW IF EXISTS ods.comp_b_farerev_payg_trip_txn_c;
+    CREATE VIEW ods.comp_b_farerev_payg_trip_txn_c AS
     WITH EDW_FAREREV_PAYG_TRIP_TXN AS
     (
     SELECT
@@ -439,8 +439,8 @@ COMP_B_TXN_C = """
 """
 
 COMP_A_TXN_A = """
-    DROP VIEW IF EXISTS ods.farerev_prod_sales_txn_a;
-    CREATE VIEW ods.farerev_prod_sales_txn_a
+    DROP VIEW IF EXISTS ods.comp_a_addendum_farerev_prod_sales_txn_a;
+    CREATE VIEW ods.comp_a_addendum_farerev_prod_sales_txn_a
     AS
     with EDW_FAREREV_PROD_SALES_TXN AS (
     SELECT
@@ -691,8 +691,8 @@ COMP_A_TXN_A = """
 """
 
 COMP_A_TXN_C = """
-    DROP VIEW IF EXISTS ods.farerev_prod_sales_txn_c;
-    CREATE VIEW ods.farerev_prod_sales_txn_c
+    DROP VIEW IF EXISTS ods.comp_a_farerev_prod_sales_txn_c;
+    CREATE VIEW ods.comp_a_farerev_prod_sales_txn_c
     AS
     with EDW_FAREREV_PROD_SALES_TXN AS (
     SELECT

@@ -464,8 +464,8 @@ WC231_CLEARING_HOUSE = """
 
 
 WA160_VIEW = """
-    DROP VIEW IF EXISTS ods.wa160;
-    CREATE OR REPLACE VIEW ods.wa160
+    DROP VIEW IF EXISTS ods.use_txns_wa160;
+    CREATE OR REPLACE VIEW ods.use_txns_wa160
     AS
     SELECT
         date(posting_day_key::text) as posting_date,
@@ -704,8 +704,8 @@ WC231_PASS_ID_ADHOC = """
 """
 
 WO110 = """
-DROP VIEW IF EXISTS ods.wo110;
-CREATE VIEW ods.wo110
+DROP VIEW IF EXISTS ods.patron_order_details_wo110;
+CREATE VIEW ods.patron_order_details_wo110
 AS
 WITH CSR_PATRON_ORDER_DETAIL AS 
 (
@@ -1026,8 +1026,8 @@ INNER JOIN ods.edw_operator_dimension AS od ON
 """
 
 WO150 = """
-DROP VIEW IF EXISTS ods.wo150;
-CREATE VIEW ods.wo150
+DROP VIEW IF EXISTS ods.csr_patron_adjustments_wo150;
+CREATE VIEW ods.csr_patron_adjustments_wo150
 AS
 WITH CSR_PATRON_ORDER_DETAIL AS (SELECT o.order_dtm AS order_date,
        TO_TIMESTAMP(CAST(py.settlement_day_key AS VARCHAR),'YYYYMMDD') AS sales_settlement_date,
@@ -1585,8 +1585,8 @@ FROM ods.edw_unsettled_use euu
 """
 
 FAREREV_RECOVERY_TXN_C = """
-DROP VIEW IF EXISTS ods.farerev_recovery_txn_c;
-CREATE VIEW ods.farerev_recovery_txn_c
+DROP VIEW IF EXISTS ods.comp_c_farerev_recovery_txn_c;
+CREATE VIEW ods.comp_c_farerev_recovery_txn_c
 AS
 WITH edw_farerev_recovery_txn_v AS (
 SELECT
@@ -1671,8 +1671,8 @@ SELECT * FROM farerev_recovery_txn_c;
 """
 
 FAREREV_RECOVERY_TXN_A = """
-DROP VIEW IF EXISTS ods.farerev_recovery_txn_a;
-CREATE VIEW ods.farerev_recovery_txn_a
+DROP VIEW IF EXISTS ods.comp_c_addendum_farerev_recovery_txn_a;
+CREATE VIEW ods.comp_c_addendum_farerev_recovery_txn_a
 AS
 WITH edw_farerev_recovery_txn_v AS (
 SELECT
@@ -1917,7 +1917,7 @@ FROM
 
 
 WO118 = """
-CREATE OR REPLACE VIEW ods.wo118
+CREATE OR REPLACE VIEW ods.product_transfer_details_wo118
 AS
 SELECT
 'WO118',
