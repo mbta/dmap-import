@@ -15,6 +15,9 @@ from cubic_loader.utils.logger import ProcessLogger
 
 S3_POOL_COUNT = 50
 
+# Deployment environment, derived from the ECS service name (e.g. "dmap-import-prod" -> "prod").
+AWS_ENV = os.getenv("ECS_TASK_GROUP", "no_env").split("-")[-1]
+
 
 def running_in_aws() -> bool:
     """

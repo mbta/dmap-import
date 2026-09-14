@@ -6,6 +6,7 @@ from cubic_loader.utils.logger import ProcessLogger
 from cubic_loader.utils.postgres import alembic_upgrade_to_head
 from cubic_loader.utils.postgres import DatabaseManager
 from cubic_loader.utils.runtime import validate_environment
+from cubic_loader.utils.sentry import init_sentry
 from cubic_loader.utils.remote_locations import ODS_SCHEMA
 
 
@@ -73,6 +74,8 @@ def main() -> None:
     """
     initialize and validate environment, then start running the application
     """
+    init_sentry()
+
     os.environ["SERVICE_NAME"] = "validate_env"
 
     validate_environment(

@@ -53,6 +53,7 @@ from cubic_loader.qlik.utils import dfm_schema_to_df
 from cubic_loader.qlik.utils import lf_from_merged_csv
 from cubic_loader.qlik.utils import s3_list_cdc_gz_objects
 from cubic_loader.utils.logger import ProcessLogger
+from cubic_loader.utils.sentry import init_sentry
 
 
 def get_snapshot_dfms(table: str) -> List[DFMDetails]:
@@ -527,6 +528,8 @@ class CubicODSQlik:
         If a new QLIK Snapshot is detected, all existing tables will be dropped and whole process will be
         reset to load NEW Snapshot
         """
+        init_sentry()
+
         # pylint: disable-next=attribute-defined-outside-init
         self.db = DatabaseManager()
         logger = ProcessLogger(
