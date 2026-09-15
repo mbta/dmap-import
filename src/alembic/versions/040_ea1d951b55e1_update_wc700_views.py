@@ -1,8 +1,8 @@
 """Update WC700 views
 
-Revision ID: 028408b18bad
-Revises: 4b9e25ccbea7
-Create Date: 2026-09-15 11:00:28.057719
+Revision ID: ea1d951b55e1
+Revises: 42e39526183d
+Create Date: 2026-09-15 15:44:47.917730
 
 """
 
@@ -18,8 +18,8 @@ from cubic_loader.qlik.sql_strings.views import WC700_COMP_D_VIEW
 
 
 # revision identifiers, used by Alembic.
-revision: str = "028408b18bad"
-down_revision: Union[str, None] = "4b9e25ccbea7"
+revision: str = "ea1d951b55e1"
+down_revision: Union[str, None] = "42e39526183d"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
