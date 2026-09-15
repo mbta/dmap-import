@@ -24,154 +24,300 @@ AD_HOC_PROCESSED_TAPS_VIEW = """
 """
 
 WC700_COMP_A_VIEW = """
-    DROP VIEW IF EXISTS ods.wc700_comp_a;
-    CREATE OR REPLACE VIEW ods.wc700_comp_a
-    AS
-    SELECT
-        ps.settlement_day_key
-        ,ps.operating_day_key
-        ,ps.payment_type_key
-        ,tcm.txn_channel_display
-        ,tcm.sales_channel_display
-        ,SUM(COALESCE(transit_value,0) + COALESCE(benefit_value,0) + COALESCE(bankcard_payment_value,0) + COALESCE(one_account_value,0))/100 AS stored_value
-        ,SUM(COALESCE(pass_cost,0))/100 AS pass_cost
-        ,SUM(COALESCE(enablement_fee,0))/100 AS enablement_fee
-        ,SUM(COALESCE(transit_value,0) + COALESCE(benefit_value,0) + COALESCE(bankcard_payment_value,0) + COALESCE(one_account_value,0) + COALESCE(pass_cost,0) + COALESCE(enablement_fee,0) + COALESCE(replacement_fee, 0))/100 AS total_fare_revenue
-    FROM
-        ods.edw_payment_summary ps
-    JOIN
-        ods.edw_txn_channel_map tcm
-        ON
-            tcm.txn_source = ps.txn_source
-            AND tcm.sales_channel_key = ps.sales_channel_key
-            and tcm.payment_type_key = ps.payment_type_key
-    WHERE
-        tcm.txn_group = 'Product Sales'
-    GROUP BY
-        ps.settlement_day_key
-        ,ps.operating_day_key
-        ,ps.payment_type_key
-        ,tcm.txn_channel_display
-        ,tcm.sales_channel_display
-    ORDER BY
-        operating_day_key desc
-        ,settlement_day_key desc
-    ;
+DROP VIEW IF EXISTS ods.wc700_comp_a;
+CREATE VIEW ods.wc700_comp_a
+AS (
+WITH FAREREV_PROD_SALES_SUMMARY AS (
+SELECT p.settlement_day_key,
+p.operating_day_key,
+p.payment_type_key,
+m.txn_channel_display,
+m.sales_channel_display,
+SUM(COALESCE(transit_value,0) + COALESCE(benefit_value,0) + COALESCE(bankcard_payment_value,0) 
++ COALESCE(one_account_value,0)) AS stored_value,
+SUM(COALESCE(pass_cost,0)) AS pass_cost,
+SUM(COALESCE(enablement_fee,0)) AS enablement_fee,
+SUM(COALESCE(replacement_fee, 0)) AS replacement_fee,
+SUM(COALESCE(transit_value,0) + COALESCE(benefit_value,0) + COALESCE(bankcard_payment_value,0) 
+	+ COALESCE(one_account_value,0) + COALESCE(pass_cost,0) + COALESCE(enablement_fee,0) 
+	+ COALESCE(replacement_fee, 0)) AS total_fare_revenue
+FROM ods.edw_payment_summary p
+	JOIN ods.edw_txn_channel_map m ON m.txn_source = p.txn_source 
+	AND m.sales_channel_key = p.sales_channel_key 
+	AND m.payment_type_key = p.payment_type_key
+WHERE m.txn_group = 'Product Sales'
+GROUP BY
+p.settlement_day_key,
+p.operating_day_key,
+p.payment_type_key,
+m.txn_channel_display,
+m.sales_channel_display
+)
+SELECT
+'WC700',
+OPERATING_DATE_DIMENSION.DTM AS operating_day,
+SETTLEMENT_DATE_DIMENSION.DTM AS settlement_day,
+strptime(CAST(FAREREV_REPORT_SCHEDULE.DUE_DAY_KEY AS VARCHAR), '%Y%m%d') AS due_day,
+CASE
+	WHEN FAREREV_REPORT_SCHEDULE.DUE_DAY_KEY > FAREREV_PROD_SALES_SUMMARY.SETTLEMENT_DAY_KEY
+	THEN '<' || strftime(strptime(CAST(FAREREV_REPORT_SCHEDULE.DUE_DAY_KEY AS VARCHAR), '%Y%m%d'),'%d-%b-%y')
+	ELSE
+'  ' || strftime(strptime(CAST(FAREREV_PROD_SALES_SUMMARY.SETTLEMENT_DAY_KEY AS VARCHAR), '%Y%m%d'),'%d-%b-%y')
+END AS due_day_grouping_display,
+CASE
+	WHEN FAREREV_REPORT_SCHEDULE.DUE_DAY_KEY >FAREREV_PROD_SALES_SUMMARY.SETTLEMENT_DAY_KEY
+	THEN strptime(CAST(FAREREV_REPORT_SCHEDULE.DUE_DAY_KEY AS VARCHAR), '%Y%m%d') - interval'1 day'
+	ELSE strptime(CAST(FAREREV_PROD_SALES_SUMMARY.SETTLEMENT_DAY_KEY AS VARCHAR), '%Y%m%d')
+END AS due_day_for_group_sorting,
+FAREREV_PROD_SALES_SUMMARY.TXN_CHANNEL_DISPLAY,
+FAREREV_PROD_SALES_SUMMARY.SALES_CHANNEL_DISPLAY,
+SUM(FAREREV_PROD_SALES_SUMMARY.STORED_VALUE/100) AS stored_value,
+SUM(FAREREV_PROD_SALES_SUMMARY.PASS_COST/100) AS pass_cost,
+SUM(FAREREV_PROD_SALES_SUMMARY.ENABLEMENT_FEE/100) AS enablement_fee,
+COALESCE(SUM(FAREREV_PROD_SALES_SUMMARY.REPLACEMENT_FEE/100),0) AS replacement_fee,
+SUM(FAREREV_PROD_SALES_SUMMARY.TOTAL_FARE_REVENUE/100) AS total_fare_revenue
+FROM
+FAREREV_PROD_SALES_SUMMARY
+	JOIN ods.edw_date_dimension SETTLEMENT_DATE_DIMENSION ON SETTLEMENT_DATE_DIMENSION.DATE_KEY=FAREREV_PROD_SALES_SUMMARY.SETTLEMENT_DAY_KEY
+	JOIN ods.edw_date_dimension OPERATING_DATE_DIMENSION ON OPERATING_DATE_DIMENSION.DATE_KEY=FAREREV_PROD_SALES_SUMMARY.OPERATING_DAY_KEY
+	JOIN ods.edw_fare_revenue_report_schedule FAREREV_REPORT_SCHEDULE ON FAREREV_PROD_SALES_SUMMARY.OPERATING_DAY_KEY = FAREREV_REPORT_SCHEDULE.COMP_OPERATING_DAY_KEY 
+GROUP BY
+'WC700', 
+OPERATING_DATE_DIMENSION.DTM, 
+SETTLEMENT_DATE_DIMENSION.DTM, 
+due_day,
+due_day_grouping_display,
+due_day_for_group_sorting,
+FAREREV_PROD_SALES_SUMMARY.TXN_CHANNEL_DISPLAY,
+FAREREV_PROD_SALES_SUMMARY.SALES_CHANNEL_DISPLAY
+)
 """
 
 
 WC700_COMP_B_VIEW = """
-    DROP VIEW IF EXISTS ods.wc700_comp_b;
-    CREATE OR REPLACE VIEW ods.wc700_comp_b
-    AS
-    SELECT
-        ps.settlement_day_key
-        ,ps.operating_day_key
-        ,ps.payment_type_key
-        ,tcm.txn_channel_display
-        ,tcm.sales_channel_display
-        ,SUM(COALESCE(payment_value,0))/100 AS total_fare_revenue
-    FROM
-        ods.edw_payment_summary ps
-    JOIN
-        ods.edw_txn_channel_map tcm
-        ON
-            tcm.txn_source = ps.txn_source
-            AND tcm.sales_channel_key = ps.sales_channel_key
-            and tcm.payment_type_key = ps.payment_type_key
-    WHERE
-        tcm.txn_group = 'Open Payment Trips'
-    GROUP BY
-        ps.settlement_day_key
-        ,ps.operating_day_key
-        ,ps.payment_type_key
-        ,tcm.txn_channel_display
-        ,tcm.sales_channel_display
-    ORDER BY
-        operating_day_key desc
-        ,settlement_day_key desc
-    ;
+DROP VIEW IF EXISTS ods.wc700_comp_b;
+CREATE VIEW ods.wc700_comp_b
+AS (
+WITH FAREREV_PAYG_TRIP_SUMMARY AS (
+SELECT p.settlement_day_key,
+p.operating_day_key,
+p.payment_type_key,
+m.txn_channel_display,
+m.sales_channel_display,
+SUM(payment_value) AS total_fare_revenue
+FROM ods.edw_payment_summary p
+	JOIN ods.edw_txn_channel_map m ON m.txn_source = p.txn_source
+	AND m.sales_channel_key = p.sales_channel_key
+	AND m.payment_type_key = p.payment_type_key
+WHERE m.txn_group = 'Open Payment Trips'
+GROUP BY
+p.settlement_day_key,
+p.operating_day_key,
+p.payment_type_key,
+m.txn_channel_display,
+m.sales_channel_display
+)
+SELECT
+'WC700',
+OPERATING_DATE_DIMENSION.DTM AS operating_day,
+SETTLEMENT_DATE_DIMENSION.DTM AS settlement_day,
+strptime(CAST(FAREREV_REPORT_SCHEDULE.DUE_DAY_KEY AS VARCHAR), '%Y%m%d') AS due_day,
+CASE
+WHEN FAREREV_REPORT_SCHEDULE.DUE_DAY_KEY > FAREREV_PAYG_TRIP_SUMMARY.SETTLEMENT_DAY_KEY
+	THEN '<' || strftime(strptime(CAST(FAREREV_REPORT_SCHEDULE.DUE_DAY_KEY AS VARCHAR), '%Y%m%d'),'%d-%b-%y')
+	ELSE '  ' || strftime(strptime(CAST(FAREREV_PAYG_TRIP_SUMMARY.SETTLEMENT_DAY_KEY AS VARCHAR), '%Y%m%d'),'%d-%b-%y')
+END AS due_day_grouping_display,
+CASE
+	WHEN FAREREV_REPORT_SCHEDULE.DUE_DAY_KEY > FAREREV_PAYG_TRIP_SUMMARY.SETTLEMENT_DAY_KEY
+	THEN strptime(CAST(FAREREV_REPORT_SCHEDULE.DUE_DAY_KEY AS VARCHAR), '%Y%m%d') - interval'1 day'
+	ELSE strptime(CAST(FAREREV_PAYG_TRIP_SUMMARY.SETTLEMENT_DAY_KEY AS VARCHAR), '%Y%m%d')
+END AS due_day_grouping_for_sorting,
+FAREREV_PAYG_TRIP_SUMMARY.TXN_CHANNEL_DISPLAY,
+FAREREV_PAYG_TRIP_SUMMARY.SALES_CHANNEL_DISPLAY,
+SUM(FAREREV_PAYG_TRIP_SUMMARY.TOTAL_FARE_REVENUE/100) AS total_fare_revenue
+FROM
+FAREREV_PAYG_TRIP_SUMMARY
+	JOIN ods.edw_date_dimension SETTLEMENT_DATE_DIMENSION ON SETTLEMENT_DATE_DIMENSION.DATE_KEY=FAREREV_PAYG_TRIP_SUMMARY.SETTLEMENT_DAY_KEY
+	JOIN ods.edw_date_dimension OPERATING_DATE_DIMENSION ON OPERATING_DATE_DIMENSION.DATE_KEY=FAREREV_PAYG_TRIP_SUMMARY.OPERATING_DAY_KEY
+	JOIN ods.edw_fare_revenue_report_schedule FAREREV_REPORT_SCHEDULE ON FAREREV_PAYG_TRIP_SUMMARY.OPERATING_DAY_KEY = FAREREV_REPORT_SCHEDULE.COMP_OPERATING_DAY_KEY
+GROUP BY
+'WC700',
+operating_day,
+settlement_day,
+due_day,
+due_day_grouping_display,
+due_day_grouping_for_sorting,
+FAREREV_PAYG_TRIP_SUMMARY.TXN_CHANNEL_DISPLAY,
+FAREREV_PAYG_TRIP_SUMMARY.SALES_CHANNEL_DISPLAY
+)
 """
 
 
 WC700_COMP_C_VIEW = """
-    DROP VIEW IF EXISTS ods.wc700_comp_c;
-    CREATE VIEW ods.wc700_comp_c
-    AS
-    SELECT
-        t.settlement_day_key
-        ,t.operating_day_key
-        ,rc.rider_class_name
-        ,fp.fare_prod_name
-        ,t.service_type_id
-        ,t.fare_rule_description
-        ,t.recovery_txn_type
-        ,sum(t.minimum_fare_charge) / 100 AS recovery_calculation_amount
-    FROM
-        ods.edw_farerev_recovery_txn t
-    LEFT JOIN
-        ods.edw_rider_class_dimension rc
-        ON
-            rc.rider_class_id = t.rider_class_id
-    LEFT JOIN
-        ods.edw_fare_product_dimension fp
-        ON
-            fp.fare_prod_key = t.fare_prod_key
-    WHERE
-        fp.monetary_inst_type_id = 2
-        AND t.minimum_fare_charge IS NOT NULL
-    GROUP BY
-        t.operating_day_key
-        ,t.settlement_day_key
-        ,t.service_type_id
-        ,rc.rider_class_name
-        ,fp.fare_prod_name
-        ,t.fare_rule_description
-        ,t.recovery_txn_type
-    ORDER BY
-        operating_day_key desc
-        ,settlement_day_key desc
-    ;
+DROP VIEW IF EXISTS ods.wc700_comp_c;
+CREATE VIEW ods.wc700_comp_c
+AS (
+WITH FAREREV_RECOVERY_TXN_V AS (
+SELECT
+CAST ('C' AS CHAR(1)) AS computation_type,
+od.dtm AS operating_date,
+t.transaction_dtm,
+pd.dtm AS posting_date,
+sd.dtm AS settlement_date,
+st.service_type_name,
+COALESCE(sp.stop_point_name, rd.route_name) AS location,
+t.device_id,
+t.source_table_uk AS transaction_id,
+t.tap_id,
+t.trip_id,
+rc.rider_class_name,
+fp.fare_prod_name,
+t.fare_rule_description,
+t.recovery_txn_type,
+t.incident_id,
+t.supervening_event,
+t.minimum_fare_charge AS recovery_calculation_amount,
+t.operating_day_key,
+t.settlement_day_key,
+t.posting_day_key
+FROM ods.edw_farerev_recovery_txn t
+	JOIN ods.edw_date_dimension od ON od.date_key = t.operating_day_key
+	JOIN ods.edw_date_dimension pd ON pd.date_key = t.posting_day_key
+	JOIN ods.edw_date_dimension sd ON sd.date_key = t.settlement_day_key
+	LEFT JOIN ods.edw_service_type_dimension st ON st.service_type_id = t.service_type_id
+	LEFT JOIN ods.edw_stop_point_dimension sp ON sp.stop_point_key = t.stop_point_key
+	LEFT JOIN ods.edw_route_dimension rd ON rd.route_key = t.route_key
+	LEFT JOIN ods.edw_rider_class_dimension rc ON rc.rider_class_id = t.rider_class_id
+	LEFT JOIN ods.edw_fare_product_dimension fp ON fp.fare_prod_key = t.fare_prod_key
+		AND fp.monetary_inst_type_id = 2
+),
+FAREREV_RECOVERY_SUMMARY AS (
+SELECT
+settlement_day_key,
+operating_day_key,
+rider_class_name,
+fare_prod_name,
+service_type_name,
+fare_rule_description,
+recovery_txn_type,
+SUM(recovery_calculation_amount) AS recovery_calculation_amount
+FROM farerev_recovery_txn_v
+GROUP BY
+settlement_day_key,
+operating_day_key,
+rider_class_name,
+fare_prod_name,
+service_type_name,
+fare_rule_description,
+recovery_txn_type
+)
+SELECT
+'WC700',
+OPERATING_DATE_DIMENSION.DTM AS operating_day,
+SETTLEMENT_DATE_DIMENSION.DTM AS settlement_day,
+strptime(CAST(FAREREV_REPORT_SCHEDULE.DUE_DAY_KEY AS VARCHAR), '%Y%m%d') AS due_day,
+CASE
+	WHEN FAREREV_REPORT_SCHEDULE.DUE_DAY_KEY > FAREREV_RECOVERY_SUMMARY.SETTLEMENT_DAY_KEY
+	THEN '<' || strftime(strptime(CAST(FAREREV_REPORT_SCHEDULE.DUE_DAY_KEY AS VARCHAR), '%Y%m%d'),'%d-%b-%y')
+	ELSE '  ' || strftime(strptime(CAST(FAREREV_RECOVERY_SUMMARY.SETTLEMENT_DAY_KEY AS VARCHAR), '%Y%m%d'),'%d-%b-%y')
+END AS due_day_grouping_display,
+CASE
+	WHEN FAREREV_REPORT_SCHEDULE.DUE_DAY_KEY > FAREREV_RECOVERY_SUMMARY.SETTLEMENT_DAY_KEY
+	THEN strptime(CAST(FAREREV_REPORT_SCHEDULE.DUE_DAY_KEY AS VARCHAR), '%Y%m%d') - interval'1 day'
+	ELSE strptime(CAST(FAREREV_RECOVERY_SUMMARY.SETTLEMENT_DAY_KEY AS VARCHAR), '%Y%m%d')
+END AS due_day_grouping_for_sorting,
+FAREREV_RECOVERY_SUMMARY.RIDER_CLASS_NAME,
+FAREREV_RECOVERY_SUMMARY.FARE_PROD_NAME AS passes_used,
+FAREREV_RECOVERY_SUMMARY.SERVICE_TYPE_NAME,
+FAREREV_RECOVERY_SUMMARY.FARE_RULE_DESCRIPTION,
+FAREREV_RECOVERY_SUMMARY.RECOVERY_TXN_TYPE AS reason_code,
+SUM(FAREREV_RECOVERY_SUMMARY.RECOVERY_CALCULATION_AMOUNT)/100 AS total_fare_revenue
+FROM FAREREV_RECOVERY_SUMMARY
+	JOIN ods.edw_fare_revenue_report_schedule FAREREV_REPORT_SCHEDULE ON FAREREV_RECOVERY_SUMMARY.OPERATING_DAY_KEY = FAREREV_REPORT_SCHEDULE.COMP_OPERATING_DAY_KEY
+	JOIN ods.edw_date_dimension SETTLEMENT_DATE_DIMENSION ON SETTLEMENT_DATE_DIMENSION.DATE_KEY=FAREREV_RECOVERY_SUMMARY.SETTLEMENT_DAY_KEY
+	JOIN ods.edw_date_dimension OPERATING_DATE_DIMENSION ON OPERATING_DATE_DIMENSION.DATE_KEY=FAREREV_RECOVERY_SUMMARY.OPERATING_DAY_KEY
+GROUP BY
+'WC700',
+operating_day,
+settlement_day,
+due_day,
+due_day_grouping_display,
+due_day_grouping_for_sorting,
+FAREREV_RECOVERY_SUMMARY.RIDER_CLASS_NAME,
+passes_used,
+FAREREV_RECOVERY_SUMMARY.SERVICE_TYPE_NAME,
+FAREREV_RECOVERY_SUMMARY.FARE_RULE_DESCRIPTION,
+reason_code
+)
 """
 
 
 WC700_COMP_D_VIEW = """
-    DROP VIEW IF EXISTS ods.wc700_comp_d;
-    CREATE OR REPLACE VIEW ods.wc700_comp_d
-    AS
-    SELECT
-        ps.settlement_day_key
-        ,ps.operating_day_key
-        ,ps.payment_type_key
-        ,tcm.txn_channel_display
-        ,tcm.sales_channel_display
-        ,rd.reason_name
-        ,SUM(ps.payment_value)/100 as refund_value
-    FROM
-        ods.edw_payment_summary ps
-    JOIN
-        ods.edw_txn_channel_map tcm
-        ON
-            tcm.txn_source = ps.txn_source
-            AND tcm.sales_channel_key = ps.sales_channel_key
-            AND tcm.payment_type_key = ps.payment_type_key
-    LEFT JOIN
-        ods.edw_reason_dimension rd
-        ON
-            rd.reason_key = ps.reason_key
-    WHERE
-        tcm.txn_group = 'Direct Refunds Applied'
-    GROUP BY
-        ps.settlement_day_key
-        ,ps.operating_day_key
-        ,ps.payment_type_key
-        ,tcm.txn_channel_display
-        ,tcm.sales_channel_display
-        ,rd.reason_name
-    ORDER BY
-        ps.operating_day_key desc
-        ,ps.settlement_day_key desc
-    ;
+DROP VIEW IF EXISTS ods.wc700_comp_d;
+CREATE VIEW ods.wc700_comp_d
+AS (
+WITH FAREREV_REFUND_SUMMARY AS (
+SELECT p.settlement_day_key,
+p.operating_day_key,
+p.payment_type_key,
+m.txn_channel_display,
+m.sales_channel_display,
+r.reason_name,
+SUM(payment_value) AS refund_value,
+SUM(payment_value) AS total_fare_revenue
+FROM ods.edw_payment_summary p
+	JOIN ods.edw_txn_channel_map m ON m.txn_source = p.txn_source
+		AND m.sales_channel_key = p.sales_channel_key
+		AND m.payment_type_key = p.payment_type_key
+	LEFT JOIN ods.edw_reason_dimension r ON r.reason_key = p.reason_key
+WHERE m.txn_group = 'Direct Refunds Applied'
+GROUP BY
+p.settlement_day_key,
+p.operating_day_key,
+p.payment_type_key,
+m.txn_channel_display,
+m.sales_channel_display,
+r.reason_name
+)
+SELECT
+'WC700',
+OPERATING_DATE_DIMENSION.DTM AS operating_day,
+SETTLEMENT_DATE_DIMENSION.DTM AS settlement_day,
+strptime(CAST(FAREREV_REPORT_SCHEDULE.DUE_DAY_KEY AS VARCHAR), '%Y%m%d') AS due_day,
+CASE
+	WHEN FAREREV_REPORT_SCHEDULE.DUE_DAY_KEY > FAREREV_REFUND_SUMMARY.SETTLEMENT_DAY_KEY
+	THEN '<' || strftime(strptime(CAST(FAREREV_REPORT_SCHEDULE.DUE_DAY_KEY AS VARCHAR), '%Y%m%d'),'%d-%b-%y')
+	ELSE '  ' || strftime(strptime(CAST(FAREREV_REFUND_SUMMARY.SETTLEMENT_DAY_KEY AS VARCHAR), '%Y%m%d'),'%d-%b-%y')
+END AS due_day_grouping_display,
+CASE
+	WHEN FAREREV_REPORT_SCHEDULE.DUE_DAY_KEY > FAREREV_REFUND_SUMMARY.SETTLEMENT_DAY_KEY
+	THEN strptime(CAST(FAREREV_REPORT_SCHEDULE.DUE_DAY_KEY AS VARCHAR), '%Y%m%d') - interval'1 day'
+	ELSE strptime(CAST(FAREREV_REFUND_SUMMARY.SETTLEMENT_DAY_KEY AS VARCHAR), '%Y%m%d')
+END AS due_day_grouping_for_sorting,
+FAREREV_REFUND_SUMMARY.TXN_CHANNEL_DISPLAY,
+FAREREV_REFUND_SUMMARY.SALES_CHANNEL_DISPLAY,
+FAREREV_REFUND_SUMMARY.REASON_NAME,
+PAYMENT_TYPE_DIMENSION.PAYMENT_TYPE_NAME,
+(SUM(FAREREV_REFUND_SUMMARY.REFUND_VALUE/100)) AS refund_value,
+(SUM(FAREREV_REFUND_SUMMARY.TOTAL_FARE_REVENUE/100)) AS total_fare_revenue
+FROM
+FAREREV_REFUND_SUMMARY
+	JOIN ods.edw_fare_revenue_report_schedule FAREREV_REPORT_SCHEDULE ON FAREREV_REFUND_SUMMARY.OPERATING_DAY_KEY = FAREREV_REPORT_SCHEDULE.COMP_OPERATING_DAY_KEY
+	RIGHT JOIN ods.edw_payment_type_dimension PAYMENT_TYPE_DIMENSION ON FAREREV_REFUND_SUMMARY.PAYMENT_TYPE_KEY = PAYMENT_TYPE_DIMENSION.PAYMENT_TYPE_KEY
+	JOIN ods.edw_date_dimension OPERATING_DATE_DIMENSION ON OPERATING_DATE_DIMENSION.DATE_KEY=FAREREV_REFUND_SUMMARY.OPERATING_DAY_KEY
+	JOIN ods.edw_date_dimension SETTLEMENT_DATE_DIMENSION ON SETTLEMENT_DATE_DIMENSION.DATE_KEY=FAREREV_REFUND_SUMMARY.SETTLEMENT_DAY_KEY
+GROUP BY
+'WC700',
+operating_day,
+settlement_day,
+due_day,
+due_day_grouping_display,
+due_day_grouping_for_sorting,
+FAREREV_REFUND_SUMMARY.TXN_CHANNEL_DISPLAY,
+FAREREV_REFUND_SUMMARY.SALES_CHANNEL_DISPLAY,
+FAREREV_REFUND_SUMMARY.REASON_NAME,
+PAYMENT_TYPE_DIMENSION.PAYMENT_TYPE_NAME
+)
 """
 
 WC321_CLEARING_HOUSE = """
