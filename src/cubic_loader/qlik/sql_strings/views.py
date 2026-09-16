@@ -667,7 +667,19 @@ WA160_VIEW = """
         coalesce(ut.uncollectible_amount, 0)::real / 100 as uncollectible_amount,
         tad.is_registered,
         coalesce(ut.discount_applied, 0)::real / 100 AS discount_amount,
-        coalesce(ut.post_pay_amount, 0)::real / 100 AS post_pay_amount
+        coalesce(ut.post_pay_amount, 0)::real / 100 AS post_pay_amount,
+        CASE
+            WHEN ut.transfer_flag = 2
+                AND (ut.multi_ride_id IS NULL OR ride_count <= 1)
+                THEN 'TRANSFER'
+            WHEN ut.transfer_flag = 2
+                AND (ut.multi_ride_id IS NOT NULL OR ride_count > 1)
+                THEN 'MULTI-RIDE TRANSFER'
+            WHEN ut.transfer_flag != 2
+                AND (ut.multi_ride_id IS NOT NULL OR ride_count > 1)
+                THEN 'MULTI-RIDE'
+            ELSE NULL
+        END AS transfer_or_multiride
     FROM
         ods.edw_use_transaction ut
     LEFT JOIN
