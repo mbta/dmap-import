@@ -2172,10 +2172,6 @@ AS
   KPI_AVAILABILITY_EVENT.DEADLINE_DTM
 FROM
   ods.edw_kpi_availability_event KPI_AVAILABILITY_EVENT
-WHERE
-COALESCE(KPI_AVAILABILITY_EVENT.OUTAGE_END_DTM, KPI_AVAILABILITY_EVENT.CLOSE_DTM) >= TIMESTAMP '2025-08-01 00:00:00'
-and 
-COALESCE(KPI_AVAILABILITY_EVENT.OUTAGE_BEGIN_DTM, KPI_AVAILABILITY_EVENT.OPEN_DTM) <= TIMESTAMP '2025-08-31 23:59:59'
 );
 """
 
@@ -2221,13 +2217,11 @@ inner join ods.edw_date_dimension dd
 on ks.transit_day_key = dd.date_key
 inner join ods.edw_kpi kpi
 on ks.kpi_id = kpi.kpi_id  and COALESCE(grouped,'xxx') not like 'sum%'
-where dd.month_desc = 'February' AND dd.YEAR = 2026
---dd.dtm >= '2025-08-01 00:00:00.000'
---AND dd.dtm <= '2025-08-31 23:59:59.000'
-and metric_category_id = 8
+where metric_category_id = 8
 group by ks.kpi_id,kpi_name,kpi_type,units,dd.month_desc,dd.YEAR) s1 --S1 IS WORKING BY ITSELF
 	left join
 (select kpi_id,
+dd.month_desc || '-' || dd.YEAR AS run_date,
 case when location_category in ('A','B','C','D') then location_category
 when kpi_id in ('P1-18','P2-19.1','P2-19.2','P2-20','P3-21') and failure_level = 999 then 'PTT'
 else location_category end location_category,
@@ -2237,14 +2231,13 @@ sum(kpi_value)::numeric/100 as deduction
 from ods.edw_kpi_detail_events_by_day kpi_detail_events_by_day
 inner join ods.edw_date_dimension dd
 on  kpi_detail_events_by_day.transit_day_key = dd.date_key
-where dd.month_desc = 'February' AND dd.YEAR = 2026
---dd.dtm >= '2025-08-01 00:00:00.000'
---AND dd.dtm <= '2025-08-31 23:59:59.000'
 group by kpi_id,
+dd.month_desc,
+dd.YEAR,
 case when location_category in ('A','B','C','D') then location_category
 when kpi_id in ('P1-18','P2-19.1','P2-19.2','P2-20','P3-21') and failure_level = 999 then 'PTT'
 else location_category end) s2 --S2 IS WORKING BY ITSELF
-on s1.kpi_id = s2.kpi_id)
+on s1.kpi_id = s2.kpi_id and s1.run_date = s2.run_date)
 order by rtrim(substr(s1.kpi_id,2,2),'abcd-')::int,
 length(substr(s1.kpi_id,1,4)),substr(s1.kpi_id,2,3),
 cast(ltrim(substr(s1.kpi_id,4,6),'abcd-') AS float),location_category
@@ -2273,10 +2266,7 @@ AS
   --DT_WSP611_SA_MON_PERF_DED.ORDER2
 FROM
   ( 
-  with --date_range as
---(select date_key,dd.month_desc || '-' || dd.YEAR AS run_date from ods.edw_date_dimension dd
---  where dd.month_desc = 'March' AND dd.YEAR = 2025), --SELECT MONTH AND YEAR
-base as
+  with base as
         (SELECT ks.kpi_id,kpi_name,kpi.kpi_type,units,metric_category_id,base_qty,grouped,dd.month_desc || '-' || dd.YEAR AS run_date,
                 SUM(kpi_value) AS measured,
                 SUM(kpi_quantity) AS total_qty,
@@ -2285,7 +2275,6 @@ base as
          INNER JOIN ods.edw_date_dimension dd ON dd.date_key = ks.transit_day_key
          INNER JOIN ods.edw_kpi kpi ON ks.kpi_id = kpi.kpi_id and deduction_basis_id is null
                     and (metric_category_id != 8 or metric_category_id is null)
-         WHERE dd.month_desc = 'January' AND dd.YEAR = 2026 --SELECT RUN DATE AND YEAR
          GROUP BY ks.kpi_id,kpi_name,kpi_type,units,metric_category_id,base_qty,grouped,run_date
         ),                           
         child as
@@ -2315,7 +2304,7 @@ base as
             case when substr(b.grouped,1,3) in ('sum','max','min') then coalesce(c.total_qty,b.total_qty) else b.total_qty end total_qty,
             last_day_key 
          from base b
-         left join child c on c.kpi_id = b.kpi_id
+         left join child c on c.kpi_id = b.kpi_id and c.run_date = b.run_date
          )
   select 
   rtrim(substr(kg.kpi_id,2,2),'abcd-')::int as order0,run_date,
@@ -2444,20 +2433,6 @@ FROM
 WHERE
   ( KPI.KPI_ID=KPI_DETAIL_EVENTS_BY_DAY.KPI_ID  )
   AND  ( DATE_DIMENSION.DATE_KEY=KPI_DETAIL_EVENTS_BY_DAY.TRANSIT_DAY_KEY  )
-  AND month_desc = 'January' AND YEAR = 2026
---  AND dtm >= '2025-08-01 00:00:00.000'
---  AND dtm <= '2025-08-31 23:59:59.000'
-  --AND  
---  (
---   KPI_DETAIL_EVENTS_BY_DAY.FACILITY_NAME  IN  ('')--SELECT FACILITY
---   AND
---   KPI_DETAIL_EVENTS_BY_DAY.DEVICE_ID  IN  ('')--SELECT DEVICEID
---   AND
---   (  to_char(( DATE_DIMENSION.DTM ),'MON-yyyy')=upper('JUNE-2025') )
---   AND
---   ( ( KPI_DETAIL_EVENTS_BY_DAY.KPI_ID ) in (select kpi_id from kpi_agency_map where kpi_agency_name = '')--SELECT AGENCY
---  )
---  )
 UNION  
 SELECT
   DATE_DIMENSION.DTM,
@@ -2503,8 +2478,7 @@ FROM
 WHERE
   ( KPI.KPI_ID=KPI_DETAIL_EVENTS_BY_DAY.KPI_ID  )
   --AND KPI_DETAIL_EVENTS_BY_DAY.kpi_id LIKE 'A%' OR KPI_DETAIL_EVENTS_BY_DAY.kpi_id LIKE 'P%'
-  AND  ( DATE_DIMENSION.DATE_KEY=KPI_DETAIL_EVENTS_BY_DAY.TRANSIT_DAY_KEY  )
-  AND month_desc = 'January' AND YEAR = 2026) kpi_detail_events
+  AND  ( DATE_DIMENSION.DATE_KEY=KPI_DETAIL_EVENTS_BY_DAY.TRANSIT_DAY_KEY  )) kpi_detail_events
 WHERE KPI_ID NOT IN ('1','2','5','6a','8a','8b')
 AND KPI_ID NOT LIKE 'P%'
 ORDER BY KPI_ID ASC);
@@ -2516,6 +2490,7 @@ DROP VIEW IF EXISTS ods.wsp620_performance;
 CREATE VIEW ods.wsp620_performance
 AS
 (SELECT kpi_id
+,dtm AS transit_day
 ,AVAILABILITY_EVENT_ID AS ticket_id
 ,FACILITY_NAME 
 ,DEVICE_ID 
@@ -2576,20 +2551,6 @@ FROM
 WHERE
   ( KPI.KPI_ID=KPI_DETAIL_EVENTS_BY_DAY.KPI_ID  )
   AND  ( DATE_DIMENSION.DATE_KEY=KPI_DETAIL_EVENTS_BY_DAY.TRANSIT_DAY_KEY  )
-  AND month_desc = 'February' AND YEAR = 2026
---  AND dtm >= '2025-08-01 00:00:00.000'
---  AND dtm <= '2025-08-31 23:59:59.000'
-  --AND  
---  (
---   KPI_DETAIL_EVENTS_BY_DAY.FACILITY_NAME  IN  ('')--SELECT FACILITY
---   AND
---   KPI_DETAIL_EVENTS_BY_DAY.DEVICE_ID  IN  ('')--SELECT DEVICEID
---   AND
---   (  to_char(( DATE_DIMENSION.DTM ),'MON-yyyy')=upper('JUNE-2025') )
---   AND
---   ( ( KPI_DETAIL_EVENTS_BY_DAY.KPI_ID ) in (select kpi_id from kpi_agency_map where kpi_agency_name = '')--SELECT AGENCY
---  )
---  )
 UNION  
 SELECT
   DATE_DIMENSION.DTM,
@@ -2635,8 +2596,7 @@ FROM
 WHERE
   ( KPI.KPI_ID=KPI_DETAIL_EVENTS_BY_DAY.KPI_ID  )
   --AND KPI_DETAIL_EVENTS_BY_DAY.kpi_id LIKE 'A%' OR KPI_DETAIL_EVENTS_BY_DAY.kpi_id LIKE 'P%'
-  AND  ( DATE_DIMENSION.DATE_KEY=KPI_DETAIL_EVENTS_BY_DAY.TRANSIT_DAY_KEY  )
-  AND month_desc = 'February' AND YEAR = 2026) kpi_detail_events
+  AND  ( DATE_DIMENSION.DATE_KEY=KPI_DETAIL_EVENTS_BY_DAY.TRANSIT_DAY_KEY  )) kpi_detail_events
 WHERE KPI_ID NOT IN ('1','2','5','6a','8a','8b')
 AND KPI_ID NOT LIKE 'A%'
 ORDER BY KPI_ID ASC);
