@@ -34,13 +34,13 @@ p.payment_type_key,
 m.txn_channel_display,
 m.sales_channel_display,
 SUM(COALESCE(transit_value,0) + COALESCE(benefit_value,0) + COALESCE(bankcard_payment_value,0) 
-+ COALESCE(one_account_value,0)) AS stored_value,
++ COALESCE(refundable_purse_value,0) + COALESCE(one_account_value,0)) AS stored_value,
 SUM(COALESCE(pass_cost,0)) AS pass_cost,
 SUM(COALESCE(enablement_fee,0)) AS enablement_fee,
 SUM(COALESCE(replacement_fee, 0)) AS replacement_fee,
 SUM(COALESCE(transit_value,0) + COALESCE(benefit_value,0) + COALESCE(bankcard_payment_value,0) 
-	+ COALESCE(one_account_value,0) + COALESCE(pass_cost,0) + COALESCE(enablement_fee,0) 
-	+ COALESCE(replacement_fee, 0)) AS total_fare_revenue
+	+ COALESCE(one_account_value,0) + COALESCE(pass_cost,0) + COALESCE(refundable_purse_value,0)
+	+ COALESCE(enablement_fee,0) + COALESCE(replacement_fee, 0)) AS total_fare_revenue
 FROM ods.edw_payment_summary p
 	JOIN ods.edw_txn_channel_map m ON m.txn_source = p.txn_source 
 	AND m.sales_channel_key = p.sales_channel_key 
@@ -2117,4 +2117,487 @@ ORDER BY ORDER_NBR
 )  DT_PRODUCT_TRANSFER_DETAILS
 WHERE
 ( DT_PRODUCT_TRANSFER_DETAILS.TRANSIT_DAY ) BETWEEN 20260101 AND 20260201;
+"""
+
+
+UNPROCESSED_TAPS_VIEW = """
+DROP VIEW IF EXISTS ods.unprocessed_taps;
+CREATE VIEW ods.unprocessed_taps
+AS
+SELECT
+    REPROCESS_LOG_ID,
+    CLIENT_INFO,
+    HTTP_METHOD,
+    SERVER_INFO,
+    HTTP_URL,
+    DEVICE,
+    REQUEST_TYPE,
+    REQUEST_ID,
+    REQUEST_TIMESTAMP,
+    REQUEST,
+    btrim(NULLIF(split_part(request, ',"', 12), ''), '"') AS tap_status_id,
+    ADDITIONAL_INFO,
+    INSERTED_SERVER_NAME,
+    UPDATED_SERVER_NAME,
+    SOURCE_INSERTED_DTM,
+    SOURCE_UPDATED_DTM,
+    STAGING_INSERTED_DTM,
+    STAGING_UPDATED_DTM,
+    EDW_INSERTED_DTM,
+    EDW_UPDATED_DTM,
+    STATUS_FLAG,
+    JOB_ID
+FROM ods.edw_abp_reprocess_log r;
+"""
+
+
+WSP630_VIEW = """
+DROP VIEW IF EXISTS ods.wsp630;
+CREATE VIEW ods.wsp630
+AS
+(SELECT
+  KPI_AVAILABILITY_EVENT.OPERATOR_NAME,
+  KPI_AVAILABILITY_EVENT.FACILITY_NAME,
+  KPI_AVAILABILITY_EVENT.AVAILABILITY_EVENT_ID,
+  KPI_AVAILABILITY_EVENT.EVENT_TYPE,
+  KPI_AVAILABILITY_EVENT.BUS_ID,
+  KPI_AVAILABILITY_EVENT.DEVICE_ID,
+  COALESCE(KPI_AVAILABILITY_EVENT.OUTAGE_BEGIN_DTM, KPI_AVAILABILITY_EVENT.OPEN_DTM) AS outage_begin ,
+  COALESCE(KPI_AVAILABILITY_EVENT.OUTAGE_END_DTM, KPI_AVAILABILITY_EVENT.CLOSE_DTM) AS outage_end,
+  CASE WHEN KPI_AVAILABILITY_EVENT.EXCLUDED = 1 THEN 'Yes' ELSE 'No' END AS event_excluded ,
+  KPI_AVAILABILITY_EVENT.FAILURE_LEVEL,
+  KPI_AVAILABILITY_EVENT.FAULT_DESCRIPTION,
+  KPI_AVAILABILITY_EVENT.ROOT_CAUSE_ID,
+  KPI_AVAILABILITY_EVENT.LOCATION_CATEGORY,
+  KPI_AVAILABILITY_EVENT.DEADLINE_DTM
+FROM
+  ods.edw_kpi_availability_event KPI_AVAILABILITY_EVENT
+);
+"""
+
+
+WSP611_OPERATION_PERFORMANCE_VIEW = """
+DROP VIEW IF EXISTS ods.wsp611_operation_performance;
+CREATE VIEW ods.wsp611_operation_performance
+AS
+(SELECT
+  DT_WSP611_OP_MON_PERF_DED.run_date,
+  DT_WSP611_OP_MON_PERF_DED.KPI_ID,
+  DT_WSP611_OP_MON_PERF_DED.KPI_NAME,
+  DT_WSP611_OP_MON_PERF_DED.LOCATION_CATEGORY,
+  DT_WSP611_OP_MON_PERF_DED.TOT_QTY AS total_quantity,
+  DT_WSP611_OP_MON_PERF_DED.AVG_RESOLUTION AS average_resolution,
+  DT_WSP611_OP_MON_PERF_DED.CURE_PERIOD,
+  DT_WSP611_OP_MON_PERF_DED.UNITS,
+  DT_WSP611_OP_MON_PERF_DED.RECURRENCE_PERIODS,
+  DT_WSP611_OP_MON_PERF_DED.DEDUCTION AS deduction_amount
+  --DT_WSP611_OP_MON_PERF_DED.ORDER0,
+  --DT_WSP611_OP_MON_PERF_DED.ORDER1,
+  --DT_WSP611_OP_MON_PERF_DED.ORDER2,
+  --DT_WSP611_OP_MON_PERF_DED.ORDER3
+FROM
+  ( 
+  select  
+rtrim(substr(s1.kpi_id,2,2),'abcd-')::int as order0,
+s1.run_date,
+  length(substr(s1.kpi_id,1,4)) as order1,
+  substr(s1.kpi_id,2,3) as order2,
+  cast(ltrim(substr(s1.kpi_id,4,6),'abcd-') AS float) as order3,
+s1.kpi_id,kpi_name,location_category,tot_qty,round(avg_resolution::numeric,1) as avg_resolution,cure_period,units,recurrence_periods,
+case when (location_category in ('A','B','C','D', 'PTT') and s2.deduction is not null) then s2.deduction else s1.deduction end deduction
+from
+((select 
+dd.month_desc || '-' || dd.YEAR AS run_date
+,ks.kpi_id
+,kpi.kpi_name
+,kpi.units
+,sum(kpi_value)::numeric/100 as deduction
+FROM ods.edw_kpi_summary_by_day ks
+inner join ods.edw_date_dimension dd
+on ks.transit_day_key = dd.date_key
+inner join ods.edw_kpi kpi
+on ks.kpi_id = kpi.kpi_id  and COALESCE(grouped,'xxx') not like 'sum%'
+where metric_category_id = 8
+group by ks.kpi_id,kpi_name,kpi_type,units,dd.month_desc,dd.YEAR) s1 --S1 IS WORKING BY ITSELF
+	left join
+(select kpi_id,
+dd.month_desc || '-' || dd.YEAR AS run_date,
+case when location_category in ('A','B','C','D') then location_category
+when kpi_id in ('P1-18','P2-19.1','P2-19.2','P2-20','P3-21') and failure_level = 999 then 'PTT'
+else location_category end location_category,
+sum(1) as tot_qty,avg(performance_time_basis) as avg_resolution,
+max(base_cure_period) as cure_period, sum(recurrence_count) as Recurrence_periods,
+sum(kpi_value)::numeric/100 as deduction
+from ods.edw_kpi_detail_events_by_day kpi_detail_events_by_day
+inner join ods.edw_date_dimension dd
+on  kpi_detail_events_by_day.transit_day_key = dd.date_key
+group by kpi_id,
+dd.month_desc,
+dd.YEAR,
+case when location_category in ('A','B','C','D') then location_category
+when kpi_id in ('P1-18','P2-19.1','P2-19.2','P2-20','P3-21') and failure_level = 999 then 'PTT'
+else location_category end) s2 --S2 IS WORKING BY ITSELF
+on s1.kpi_id = s2.kpi_id and s1.run_date = s2.run_date)
+order by rtrim(substr(s1.kpi_id,2,2),'abcd-')::int,
+length(substr(s1.kpi_id,1,4)),substr(s1.kpi_id,2,3),
+cast(ltrim(substr(s1.kpi_id,4,6),'abcd-') AS float),location_category
+  )  DT_WSP611_OP_MON_PERF_DED
+);
+"""
+
+
+WSP611_SYSTEM_AVAILABILITY_VIEW = """
+DROP VIEW IF EXISTS ods.wsp611_system_availability;
+CREATE VIEW ods.wsp611_system_availability
+AS
+(SELECT
+  DT_WSP611_SA_MON_PERF_DED.run_date,
+  DT_WSP611_SA_MON_PERF_DED.KPI_ID,
+  DT_WSP611_SA_MON_PERF_DED.KPI_NAME,
+  DT_WSP611_SA_MON_PERF_DED.TOTAL_QTY,
+  DT_WSP611_SA_MON_PERF_DED.MEASURED AS measured_value,
+  DT_WSP611_SA_MON_PERF_DED.UNITS,
+  round(CAST (DT_WSP611_SA_MON_PERF_DED.THRESHOLD as numeric),2) AS threshold_value,
+  round(CAST(DT_WSP611_SA_MON_PERF_DED.KPI_VALUE AS numeric),2) AS kpi_value,
+  DT_WSP611_SA_MON_PERF_DED.BAND,
+  DT_WSP611_SA_MON_PERF_DED.DEDUCTION AS SIM
+  --DT_WSP611_SA_MON_PERF_DED.ORDER0,
+  --DT_WSP611_SA_MON_PERF_DED.ORDER1,
+  --DT_WSP611_SA_MON_PERF_DED.ORDER2
+FROM
+  ( 
+  with base as
+        (SELECT ks.kpi_id,kpi_name,kpi.kpi_type,units,metric_category_id,base_qty,grouped,dd.month_desc || '-' || dd.YEAR AS run_date,
+                SUM(kpi_value) AS measured,
+                SUM(kpi_quantity) AS total_qty,
+                MAX(CASE WHEN kpi_quantity > 0 THEN ks.transit_day_key ELSE 0 END) AS last_day_key
+         FROM ods.edw_kpi_summary_by_day ks
+         INNER JOIN ods.edw_date_dimension dd ON dd.date_key = ks.transit_day_key
+         INNER JOIN ods.edw_kpi kpi ON ks.kpi_id = kpi.kpi_id and deduction_basis_id is null
+                    and (metric_category_id != 8 or metric_category_id is null)
+         GROUP BY ks.kpi_id,kpi_name,kpi_type,units,metric_category_id,base_qty,grouped,run_date
+        ),                           
+        child as
+        (SELECT kpi_id,
+            case when grouped like 'sum%' then v_sum
+                 when grouped like 'max%' then v_max
+                 when grouped like 'min%' then v_min
+                 else v_sum
+            end measured,Q.run_date,
+            case when grouped like '%/sum' then q_sum
+                 when grouped like '%/avg' then q_avg
+                 else q_sum
+            end total_qty
+        from
+        (SELECT k.kpi_id,k.grouped,b.run_date,
+           sum(measured) as v_sum,
+           max(measured) as v_max,
+           min(measured) as v_min,
+           sum(total_qty) as q_sum,
+           avg(total_qty) as q_avg
+         from base b
+         join ods.edw_kpi k on k.kpi_id = b.grouped
+         group by k.kpi_id,k.grouped,b.run_date)Q),         
+        parent as 
+        (SELECT b.kpi_id,kpi_name,kpi_type,units,metric_category_id,base_qty,b.run_date,
+            case when substr(b.grouped,1,3) in ('sum','max','min') then coalesce(c.measured,b.measured) else b.measured end measured,
+            case when substr(b.grouped,1,3) in ('sum','max','min') then coalesce(c.total_qty,b.total_qty) else b.total_qty end total_qty,
+            last_day_key 
+         from base b
+         left join child c on c.kpi_id = b.kpi_id and c.run_date = b.run_date
+         )
+  select 
+  rtrim(substr(kg.kpi_id,2,2),'abcd-')::int as order0,run_date,
+  length(kg.kpi_id) as order1,
+  kg.kpi_id as order2,
+kg.kpi_id,kg.kpi_name,total_qty,measured,kg.units,
+         case when kg.kpi_type = '%' and kg.kpi_minimum = 0 then kg.kpi_maximum/1000::float
+              when kg.kpi_type = '%' then kg.kpi_minimum/1000::float
+              when kg.kpi_minimum = 0 then kg.kpi_maximum::float
+              else kg.kpi_minimum::float
+         end as threshold,
+         case when kg.kpi_type = '%' then round(kpi::numeric/1000,3)
+                else round(kg.kpi::numeric)
+         end as kpi_value,
+         case when metric_category_id = 9 and kg.total_qty = 0 then band_a
+                          else kt.kpi_band
+                     end as band,
+         case when metric_category_id = 9 and kg.total_qty = 0 then          
+                  case when kt.kpi_deduction_type = '%' then round(deduction_a::numeric/1000,3)
+                        else kt.kpi_deduction_value
+                  end
+              else 
+                  case when kt.kpi_deduction_type = '%' then round(kt.kpi_deduction_value::numeric/1000,3)
+                        else kt.kpi_deduction_value
+                  end
+              end as deduction
+from
+(select s2.kpi_id,kpi_name,kpi_type,metric_category_id,total_qty,measured,units, kt1.kpi_minimum,kt1.kpi_maximum,run_date,
+         case when kpi_type in ('TOT', 'Each Day', 'Days')  then measured
+                when total_qty > 0 and  kpi_type = '%'  and metric_category_id in (2,4,8) then Round((1 - measured::numeric/total_qty::numeric) * 100000,0)
+                when total_qty > 0 and  kpi_type = '%'  then Round((measured::numeric/total_qty::numeric) * 100000,0)
+                when total_qty > 0 and  kpi_type = 'AVG'  then measured::numeric/total_qty::numeric
+                when kpi_type = '%' and kt1.kpi_minimum = 0 then 0
+                when kpi_type = '%' then 100000
+                else 0
+         end kpi,
+         kt1.kpi_band as band_a,
+         kt1.kpi_deduction_value as deduction_a 
+from
+(select s1.kpi_id,kpi_name,run_date,
+            Case when substr(kpi_type,1,1) = '%' then '%' else kpi_type end kpi_type,
+            metric_category_id,
+            units,
+            Case when kpi_type = '%Last' then KS1.KPI_QUANTITY
+                    when kpi_type = '%Base' then base_qty
+                    else total_qty
+            end total_qty,
+            Case when kpi_type = '%Last' then KS1.KPI_VALUE else measured end measured
+ from
+(select kpi_id,kpi_name,kpi_type,units,metric_category_id,base_qty,measured,total_qty,last_day_key,run_date from parent) s1
+left join ods.edw_kpi_summary_by_day ks1
+on s1.kpi_id = ks1.kpi_id and s1.last_day_key = ks1.transit_day_key
+) s2
+left join ods.edw_kpi_target kt1
+on s2.kpi_id = kt1.kpi_id
+and kt1.kpi_band = 'A'
+) kg
+left join ods.edw_kpi_target kt
+on kg.kpi_id = kt.kpi_id
+ and kpi between kt.kpi_minimum and kt.kpi_maximum
+order by rtrim(substr(kg.kpi_id,2,2),'abcd-')::INT,length(kg.kpi_id),kg.kpi_id) DT_WSP611_SA_MON_PERF_DED
+);
+"""
+
+
+WSP620_AVAILABILITY_VIEW = """
+DROP VIEW IF EXISTS ods.wsp620_availability;
+CREATE VIEW ods.wsp620_availability
+AS
+(SELECT kpi_id
+,dtm AS transit_day
+,AVAILABILITY_EVENT_ID AS ticket_id
+,FACILITY_NAME 
+,BUS_ID AS vehicle_id
+,DEVICE_ID 
+,START_DTM 
+,END_DTM 
+,gross_daily_value AS gross_value
+,KPI_VALUE AS net_value
+,UNITS 
+,EVENT_TYPE 
+,FAILURE_LEVEL AS kpi_level
+,exception 
+,ROOT_CAUSE_ID 
+,FAULT_DESCRIPTION 
+FROM (SELECT
+  DATE_DIMENSION.DTM,
+  KPI_DETAIL_EVENTS_BY_DAY.KPI_ID,
+  KPI.KPI_SYSTEM,
+  KPI.KPI_NAME,
+  KPI_DETAIL_EVENTS_BY_DAY.AVAILABILITY_EVENT_ID,
+  KPI_DETAIL_EVENTS_BY_DAY.FACILITY_NAME,
+  KPI_DETAIL_EVENTS_BY_DAY.BUS_ID,
+  KPI_DETAIL_EVENTS_BY_DAY.DEVICE_ID,
+  KPI_DETAIL_EVENTS_BY_DAY.START_DTM,
+  KPI_DETAIL_EVENTS_BY_DAY.END_DTM,
+  KPI_DETAIL_EVENTS_BY_DAY.KPI_VALUE,
+  KPI_DETAIL_EVENTS_BY_DAY.RELIEF_VALUE,
+  KPI.UNITS,
+  KPI_DETAIL_EVENTS_BY_DAY.FAILURE_LEVEL,
+  KPI_DETAIL_EVENTS_BY_DAY.FAULT_DESCRIPTION,
+  KPI.METRIC_CATEGORY_ID,
+  KPI_DETAIL_EVENTS_BY_DAY.PERFORMANCE_TIME_BASIS,
+  KPI_DETAIL_EVENTS_BY_DAY.ROOT_CAUSE_ID,
+  KPI_DETAIL_EVENTS_BY_DAY.LOCATION_CATEGORY,
+  KPI_DETAIL_EVENTS_BY_DAY.BASE_CURE_PERIOD,
+  KPI_DETAIL_EVENTS_BY_DAY.BASE_RECURRENCE_PERIOD,
+  KPI_DETAIL_EVENTS_BY_DAY.CURE_PERIOD,
+  KPI_DETAIL_EVENTS_BY_DAY.RECURRENCE_PERIOD,
+  KPI_DETAIL_EVENTS_BY_DAY.RECURRENCE_COUNT,
+  KPI_DETAIL_EVENTS_BY_DAY.EVENT_TYPE,
+  case 
+when KPI_DETAIL_EVENTS_BY_DAY.EXCLUDED = 1 then 'Yes'
+when KPI_DETAIL_EVENTS_BY_DAY.EXCLUDED = 2 then 'Excluded'
+else 'No' end AS exception,
+  KPI_DETAIL_EVENTS_BY_DAY.gross_daily_value,
+  rtrim(substr(KPI.KPI_ID,2,2),'abcd-'),
+  substr(KPI.KPI_ID,1,1),
+  substr(KPI.KPI_ID,2,3),
+  ltrim(substr(KPI.KPI_ID,4,6),'abcd-'),
+  KPI.DEDUCTION_BASIS_ID
+FROM
+  ods.edw_date_dimension DATE_DIMENSION,
+  ods.edw_kpi_detail_events_by_day KPI_DETAIL_EVENTS_BY_DAY,
+  ods.edw_kpi kpi 
+WHERE
+  ( KPI.KPI_ID=KPI_DETAIL_EVENTS_BY_DAY.KPI_ID  )
+  AND  ( DATE_DIMENSION.DATE_KEY=KPI_DETAIL_EVENTS_BY_DAY.TRANSIT_DAY_KEY  )
+UNION  
+SELECT
+  DATE_DIMENSION.DTM,
+  KPI_DETAIL_EVENTS_BY_DAY.KPI_ID,
+  KPI.KPI_SYSTEM,
+  KPI.KPI_NAME,
+  KPI_DETAIL_EVENTS_BY_DAY.AVAILABILITY_EVENT_ID,
+  KPI_DETAIL_EVENTS_BY_DAY.FACILITY_NAME,
+  KPI_DETAIL_EVENTS_BY_DAY.BUS_ID,
+  KPI_DETAIL_EVENTS_BY_DAY.DEVICE_ID,
+  KPI_DETAIL_EVENTS_BY_DAY.START_DTM,
+  KPI_DETAIL_EVENTS_BY_DAY.END_DTM,
+  KPI_DETAIL_EVENTS_BY_DAY.KPI_VALUE,
+  KPI_DETAIL_EVENTS_BY_DAY.RELIEF_VALUE,
+  KPI.UNITS,
+  KPI_DETAIL_EVENTS_BY_DAY.FAILURE_LEVEL,
+  KPI_DETAIL_EVENTS_BY_DAY.FAULT_DESCRIPTION,
+  KPI.METRIC_CATEGORY_ID,
+  KPI_DETAIL_EVENTS_BY_DAY.PERFORMANCE_TIME_BASIS,
+  KPI_DETAIL_EVENTS_BY_DAY.ROOT_CAUSE_ID,
+  KPI_DETAIL_EVENTS_BY_DAY.LOCATION_CATEGORY,
+  KPI_DETAIL_EVENTS_BY_DAY.BASE_CURE_PERIOD,
+  KPI_DETAIL_EVENTS_BY_DAY.BASE_RECURRENCE_PERIOD,
+  KPI_DETAIL_EVENTS_BY_DAY.CURE_PERIOD,
+  KPI_DETAIL_EVENTS_BY_DAY.RECURRENCE_PERIOD,
+  KPI_DETAIL_EVENTS_BY_DAY.RECURRENCE_COUNT,
+  KPI_DETAIL_EVENTS_BY_DAY.EVENT_TYPE,
+  case 
+when KPI_DETAIL_EVENTS_BY_DAY.EXCLUDED = 1 then 'Yes'-- 1=yes
+when KPI_DETAIL_EVENTS_BY_DAY.EXCLUDED = 2 then 'Excluded' --2 = excluded
+else 'No'-- 0 = no 
+end AS exception,
+  KPI_DETAIL_EVENTS_BY_DAY.gross_daily_value,
+  rtrim(substr(KPI.KPI_ID,2,2),'abcd-'),
+  substr(KPI.KPI_ID,1,1),
+  substr(KPI.KPI_ID,2,3),
+  ltrim(substr(KPI.KPI_ID,4,6),'abcd-'),
+  KPI.DEDUCTION_BASIS_ID
+FROM
+  ods.edw_date_dimension DATE_DIMENSION,
+  ods.edw_kpi_detail_events_by_day KPI_DETAIL_EVENTS_BY_DAY,
+  ods.edw_kpi kpi
+WHERE
+  ( KPI.KPI_ID=KPI_DETAIL_EVENTS_BY_DAY.KPI_ID  )
+  --AND KPI_DETAIL_EVENTS_BY_DAY.kpi_id LIKE 'A%' OR KPI_DETAIL_EVENTS_BY_DAY.kpi_id LIKE 'P%'
+  AND  ( DATE_DIMENSION.DATE_KEY=KPI_DETAIL_EVENTS_BY_DAY.TRANSIT_DAY_KEY  )) kpi_detail_events
+WHERE KPI_ID NOT IN ('1','2','5','6a','8a','8b')
+AND KPI_ID NOT LIKE 'P%'
+ORDER BY KPI_ID ASC);
+"""
+
+
+WSP620_PERFORMANCE_VIEW = """
+DROP VIEW IF EXISTS ods.wsp620_performance;
+CREATE VIEW ods.wsp620_performance
+AS
+(SELECT kpi_id
+,dtm AS transit_day
+,AVAILABILITY_EVENT_ID AS ticket_id
+,FACILITY_NAME 
+,DEVICE_ID 
+,START_DTM 
+,END_DTM 
+,PERFORMANCE_TIME_BASIS AS accrued_time
+,UNITS 
+,KPI_VALUE::numeric /100 AS deduction_amount
+,FAILURE_LEVEL AS kpi_level
+,FAULT_DESCRIPTION 
+,ROOT_CAUSE_ID 
+,LOCATION_CATEGORY 
+,BASE_CURE_PERIOD AS cure_period
+,BASE_RECURRENCE_PERIOD AS recurrence_period
+,CURE_PERIOD AS adj_cure_period
+,RECURRENCE_PERIOD AS adj_recurrence_period
+,RECURRENCE_COUNT 
+FROM (SELECT
+  DATE_DIMENSION.DTM,
+  KPI_DETAIL_EVENTS_BY_DAY.KPI_ID,
+  KPI.KPI_SYSTEM,
+  KPI.KPI_NAME,
+  KPI_DETAIL_EVENTS_BY_DAY.AVAILABILITY_EVENT_ID,
+  KPI_DETAIL_EVENTS_BY_DAY.FACILITY_NAME,
+  KPI_DETAIL_EVENTS_BY_DAY.BUS_ID,
+  KPI_DETAIL_EVENTS_BY_DAY.DEVICE_ID,
+  KPI_DETAIL_EVENTS_BY_DAY.START_DTM,
+  KPI_DETAIL_EVENTS_BY_DAY.END_DTM,
+  KPI_DETAIL_EVENTS_BY_DAY.KPI_VALUE,
+  KPI_DETAIL_EVENTS_BY_DAY.RELIEF_VALUE,
+  KPI.UNITS,
+  KPI_DETAIL_EVENTS_BY_DAY.FAILURE_LEVEL,
+  KPI_DETAIL_EVENTS_BY_DAY.FAULT_DESCRIPTION,
+  KPI.METRIC_CATEGORY_ID,
+  KPI_DETAIL_EVENTS_BY_DAY.PERFORMANCE_TIME_BASIS,
+  KPI_DETAIL_EVENTS_BY_DAY.ROOT_CAUSE_ID,
+  KPI_DETAIL_EVENTS_BY_DAY.LOCATION_CATEGORY,
+  KPI_DETAIL_EVENTS_BY_DAY.BASE_CURE_PERIOD,
+  KPI_DETAIL_EVENTS_BY_DAY.BASE_RECURRENCE_PERIOD,
+  KPI_DETAIL_EVENTS_BY_DAY.CURE_PERIOD,
+  KPI_DETAIL_EVENTS_BY_DAY.RECURRENCE_PERIOD,
+  KPI_DETAIL_EVENTS_BY_DAY.RECURRENCE_COUNT,
+  KPI_DETAIL_EVENTS_BY_DAY.EVENT_TYPE,
+  case 
+when KPI_DETAIL_EVENTS_BY_DAY.EXCLUDED = 1 then 'Yes'
+when KPI_DETAIL_EVENTS_BY_DAY.EXCLUDED = 2 then 'Excluded'
+else 'No' end AS exception,
+  KPI_DETAIL_EVENTS_BY_DAY.gross_daily_value,
+  rtrim(substr(KPI.KPI_ID,2,2),'abcd-'),
+  substr(KPI.KPI_ID,1,1),
+  substr(KPI.KPI_ID,2,3),
+  ltrim(substr(KPI.KPI_ID,4,6),'abcd-'),
+  KPI.DEDUCTION_BASIS_ID
+FROM
+  ods.edw_date_dimension DATE_DIMENSION,
+  ods.edw_kpi_detail_events_by_day KPI_DETAIL_EVENTS_BY_DAY,
+  ods.edw_kpi kpi 
+WHERE
+  ( KPI.KPI_ID=KPI_DETAIL_EVENTS_BY_DAY.KPI_ID  )
+  AND  ( DATE_DIMENSION.DATE_KEY=KPI_DETAIL_EVENTS_BY_DAY.TRANSIT_DAY_KEY  )
+UNION  
+SELECT
+  DATE_DIMENSION.DTM,
+  KPI_DETAIL_EVENTS_BY_DAY.KPI_ID,
+  KPI.KPI_SYSTEM,
+  KPI.KPI_NAME,
+  KPI_DETAIL_EVENTS_BY_DAY.AVAILABILITY_EVENT_ID,
+  KPI_DETAIL_EVENTS_BY_DAY.FACILITY_NAME,
+  KPI_DETAIL_EVENTS_BY_DAY.BUS_ID,
+  KPI_DETAIL_EVENTS_BY_DAY.DEVICE_ID,
+  KPI_DETAIL_EVENTS_BY_DAY.START_DTM,
+  KPI_DETAIL_EVENTS_BY_DAY.END_DTM,
+  KPI_DETAIL_EVENTS_BY_DAY.KPI_VALUE,
+  KPI_DETAIL_EVENTS_BY_DAY.RELIEF_VALUE,
+  KPI.UNITS,
+  KPI_DETAIL_EVENTS_BY_DAY.FAILURE_LEVEL,
+  KPI_DETAIL_EVENTS_BY_DAY.FAULT_DESCRIPTION,
+  KPI.METRIC_CATEGORY_ID,
+  KPI_DETAIL_EVENTS_BY_DAY.PERFORMANCE_TIME_BASIS,
+  KPI_DETAIL_EVENTS_BY_DAY.ROOT_CAUSE_ID,
+  KPI_DETAIL_EVENTS_BY_DAY.LOCATION_CATEGORY,
+  KPI_DETAIL_EVENTS_BY_DAY.BASE_CURE_PERIOD,
+  KPI_DETAIL_EVENTS_BY_DAY.BASE_RECURRENCE_PERIOD,
+  KPI_DETAIL_EVENTS_BY_DAY.CURE_PERIOD,
+  KPI_DETAIL_EVENTS_BY_DAY.RECURRENCE_PERIOD,
+  KPI_DETAIL_EVENTS_BY_DAY.RECURRENCE_COUNT,
+  KPI_DETAIL_EVENTS_BY_DAY.EVENT_TYPE,
+  case 
+when KPI_DETAIL_EVENTS_BY_DAY.EXCLUDED = 1 then 'Yes'-- 1=yes
+when KPI_DETAIL_EVENTS_BY_DAY.EXCLUDED = 2 then 'Excluded' --2 = excluded
+else 'No'-- 0 = no 
+end AS exception,
+  KPI_DETAIL_EVENTS_BY_DAY.gross_daily_value,
+  rtrim(substr(KPI.KPI_ID,2,2),'abcd-'),
+  substr(KPI.KPI_ID,1,1),
+  substr(KPI.KPI_ID,2,3),
+  ltrim(substr(KPI.KPI_ID,4,6),'abcd-'),
+  KPI.DEDUCTION_BASIS_ID
+FROM
+  ods.edw_date_dimension DATE_DIMENSION,
+  ods.edw_kpi_detail_events_by_day KPI_DETAIL_EVENTS_BY_DAY,
+  ods.edw_kpi kpi
+WHERE
+  ( KPI.KPI_ID=KPI_DETAIL_EVENTS_BY_DAY.KPI_ID  )
+  --AND KPI_DETAIL_EVENTS_BY_DAY.kpi_id LIKE 'A%' OR KPI_DETAIL_EVENTS_BY_DAY.kpi_id LIKE 'P%'
+  AND  ( DATE_DIMENSION.DATE_KEY=KPI_DETAIL_EVENTS_BY_DAY.TRANSIT_DAY_KEY  )) kpi_detail_events
+WHERE KPI_ID NOT IN ('1','2','5','6a','8a','8b')
+AND KPI_ID NOT LIKE 'A%'
+ORDER BY KPI_ID ASC);
 """
