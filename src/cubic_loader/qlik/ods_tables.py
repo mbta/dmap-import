@@ -30,6 +30,7 @@ CUBIC_ODS_TABLES = [
     "EDW.DEVICE_EVENT",  # Not used in view, but Will said it's important
     #    "EDW.EVENT_TYPE_DIMENSION", # Temporarily disabled, as not part of a view
     "EDW.ABP_TAP",
+    "EDW.ABP_TAP_STATUS_DIMENSION",
     #    "EDW.KPI_MONTHLY_SLDC", # Temporarily disabled, as not part of a view
     #    "EDW.KPI_SUMMARY_BY_DAY", # Temporarily disabled, as not part of a view
     #    "EDW.KPI_AVAILABILITY_EVENT", # Temporarily disabled, as not part of a view
