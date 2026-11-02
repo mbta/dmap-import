@@ -30,6 +30,7 @@ CUBIC_ODS_TABLES = [
     "EDW.DEVICE_EVENT",  # Not used in view, but Will said it's important
     #    "EDW.EVENT_TYPE_DIMENSION", # Temporarily disabled, as not part of a view
     "EDW.ABP_TAP",
+    "EDW.ABP_TAP_STATUS_DIMENSION",
     #    "EDW.KPI_MONTHLY_SLDC", # Temporarily disabled, as not part of a view
     #    "EDW.KPI_SUMMARY_BY_DAY", # Temporarily disabled, as not part of a view
     #    "EDW.KPI_AVAILABILITY_EVENT", # Temporarily disabled, as not part of a view
@@ -72,6 +73,9 @@ CUBIC_ODS_TABLES = [
     #    "EDW.FRM_SRC_CRDB_ACQUIRER_CHGBK", # Temporarily disabled, as not part of a view
     "EDW.TRAVEL_MODE_DIMENSION",
     "EDW.PAL_CONFIRMATION",
+    "EDW.PAL_DEBIT_CREDIT_FARE_MEDIA",
+    "EDW.PAL_PAYMENT_REQUEST",
+    "EDW.PAL_PAYMENT_REQUEST_DETAIL",
     #    "EDW.JOURNAL_ENTRY", # Temporarily disabled, as not part of a view
     # no association to need indicated
     #    "EDW.DEVICE_END_OF_DAY_MSG_COUNT", # Temporarily disabled, as not part of a view
@@ -157,4 +161,5 @@ CUBIC_ODS_TABLES = [
     "EDW.BUS_DIMENSION",
     "DW_MAIN.DW_SETTING",
     "EDW.CASHBOX_MANUAL_COUNTS",
+    "EDW.TAP_CREATION_REASON_DIMENSION",
 ]
